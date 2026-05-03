@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E-MASTER AutoFill — Aktivitas Harian SKP (Browser Version)</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font: 14px/1.5 "Segoe UI", Tahoma, sans-serif; background: #f0f4f8; color: #333; min-height: 100vh; }
+
+  /* ===== HEADER ===== */
+  .app-header { background: linear-gradient(135deg, #1565c0, #0d47a1); color: #fff; padding: 16px 24px; text-align: center; }
+  .app-header h1 { font-size: 20px; font-weight: 700; }
+  .app-header p { font-size: 12px; opacity: .85; margin-top: 4px; }
+
+  /* ===== MAIN CONTAINER ===== */
+  .app-container { max-width: 900px; margin: 20px auto; padding: 0 16px; }
+
+  /* ===== BOOKMARKLET SECTION ===== */
+  .bm-section { background: #fff; border: 2px solid #1565c0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .bm-section h2 { font-size: 15px; color: #1565c0; margin-bottom: 8px; }
+  .bm-section p { font-size: 12px; color: #555; margin-bottom: 8px; }
+  .bm-section ol { font-size: 12px; color: #555; padding-left: 20px; margin-bottom: 12px; }
+  .bm-section ol li { margin-bottom: 4px; }
+  .bm-link { display: inline-block; padding: 8px 18px; background: linear-gradient(135deg, #1565c0, #0d47a1); color: #fff; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: move; }
+  .bm-link:hover { opacity: .9; }
+  .bm-code { background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 10px; font-size: 11px; font-family: monospace; word-break: break-all; max-height: 100px; overflow-y: auto; margin-top: 8px; color: #333; }
+
+  /* ===== TABS ===== */
+  .tabs { display: flex; gap: 3px; margin-bottom: 0; }
+  .tab { flex: 1; padding: 10px 8px; border: 1px solid #ccc; border-bottom: none; border-radius: 8px 8px 0 0; background: #f5f5f5; cursor: pointer; font-size: 12px; font-weight: 600; color: #666; text-align: center; transition: background .2s; }
+  .tab.on { background: #1565c0; color: #fff; border-color: #1565c0; }
+  .pane { display: none; background: #fff; border: 1px solid #ccc; border-radius: 0 0 8px 8px; padding: 16px; }
+  .pane.on { display: block; }
+
+  /* ===== FORM ELEMENTS ===== */
+  .lbl { display: block; font-weight: 600; margin: 10px 0 4px; font-size: 12px; color: #555; }
+  .inp { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; margin-bottom: 6px; }
+  .inp:focus { border-color: #1565c0; outline: none; box-shadow: 0 0 0 2px rgba(21,101,192,.15); }
+  .row { display: flex; gap: 8px; }
+  .row .inp { width: 100%; }
+
+  /* ===== BUTTONS ===== */
+  .btn { padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; color: #fff; transition: opacity .2s; }
+  .btn:hover { opacity: .85; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .pri { background: #1565c0; }
+  .suc { background: #2e7d32; }
+  .dan { background: #c62828; }
+  .warn { background: #e65100; }
+  .btngrp { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+
+  /* ===== CARDS ===== */
+  .card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; margin-bottom: 8px; background: #fafafa; cursor: pointer; transition: background .15s, border-color .15s; }
+  .card:hover { background: #e3f2fd; }
+  .card.on { background: #e3f2fd; border-color: #1565c0; }
+  .card-t { font-weight: 600; font-size: 13px; color: #333; }
+  .card-d { font-size: 11px; color: #888; margin-top: 3px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #e3f2fd; color: #1565c0; margin-top: 4px; margin-right: 4px; }
+
+  /* ===== MESSAGES ===== */
+  .msg { margin-top: 10px; padding: 8px 10px; border-radius: 6px; font-size: 12px; line-height: 1.4; white-space: pre-line; display: none; }
+  .msg.i { display: block; background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+  .msg.s { display: block; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+  .msg.e { display: block; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+  .msg.w { display: block; background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
+
+  /* ===== DETECT ===== */
+  .det { padding: 4px 8px; margin-bottom: 4px; border-radius: 4px; font-size: 12px; font-family: monospace; }
+  .det.ok { background: #e8f5e9; color: #2e7d32; }
+  .det.no { background: #ffebee; color: #c62828; }
+
+  /* ===== DELETE ===== */
+  .del { background: none; border: none; color: #c62828; cursor: pointer; font-size: 18px; padding: 0 4px; }
+
+  /* ===== INFO BOX ===== */
+  .info-box { background: #e3f2fd; border: 1px solid #90caf9; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 12px; color: #1565c0; line-height: 1.5; }
+  .info-box strong { color: #0d47a1; }
+
+  /* ===== IFRAME ===== */
+  .iframe-section { margin-top: 16px; }
+  .iframe-section label { font-weight: 600; font-size: 12px; color: #555; display: block; margin-bottom: 6px; }
+  .iframe-url-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .iframe-url-row .inp { flex: 1; }
+  #target-frame { width: 100%; height: 600px; border: 2px solid #1565c0; border-radius: 8px; background: #fff; }
+
+  /* ===== FOOTER ===== */
+  .app-footer { text-align: center; padding: 16px; font-size: 11px; color: #888; }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <h1>E-MASTER AutoFill — Browser Version</h1>
+  <p>Auto-fill form Aktivitas Harian SKP di Si-MASTER BKD Jatim — tanpa perlu Tampermonkey</p>
+</div>
+
+<div class="app-container">
+
+  <!-- INFO -->
+  <div class="info-box">
+    <strong>Cara Pakai:</strong><br>
+    1. Buka <a href="https://master.bkd.jatimprov.go.id" target="_blank" style="color:#0d47a1">Si-MASTER</a> di tab/window lain dan <strong>login manual</strong><br>
+    2. Navigasi ke halaman <strong>Aktivitas Harian</strong> (SKP &rarr; Realisasi Bulanan &rarr; Aktivitas Harian)<br>
+    3. Kembali ke halaman ini, pilih template / isi kata kunci, lalu klik <strong>"Buka & Isi via Bookmarklet"</strong><br>
+    4. Atau gunakan <strong>Bookmarklet</strong> di bawah untuk inject skrip langsung ke halaman Si-MASTER
+  </div>
+
+  <!-- BOOKMARKLET -->
+  <div class="bm-section">
+    <h2>Bookmarklet (Drag ke Bookmark Bar)</h2>
+    <p>Drag tombol ini ke bookmark bar browser Anda. Saat berada di halaman Si-MASTER, klik bookmarklet untuk memunculkan panel AutoFill.</p>
+    <p><a class="bm-link" id="bookmarklet-link" href="#">E-MASTER AutoFill</a></p>
+    <ol>
+      <li>Drag tombol biru di atas ke bookmark bar</li>
+      <li>Buka <a href="https://master.bkd.jatimprov.go.id" target="_blank">Si-MASTER</a> dan login</li>
+      <li>Navigasi ke halaman form Aktivitas Harian</li>
+      <li>Klik bookmarklet di bookmark bar</li>
+      <li>Panel E-MASTER AutoFill akan muncul</li>
+    </ol>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab on" data-t="fill">Isi Form</div>
+    <div class="tab" data-t="excel">Excel</div>
+    <div class="tab" data-t="map">Mapping</div>
+    <div class="tab" data-t="cfg">Konfigurasi</div>
+    <div class="tab" data-t="det">Deteksi</div>
+  </div>
+
+  <!-- FILL -->
+  <div class="pane on" id="p-fill">
+    <label class="lbl">Pilih template aktivitas:</label>
+    <div id="tpl-list"></div>
+    <hr style="border:none;border-top:1px solid #e0e0e0;margin:10px 0">
+    <label class="lbl">Atau isi manual (1 kata kunci per baris):</label>
+    <textarea id="kata-manual" class="inp" rows="4" placeholder="Kata kunci 1&#10;Kata kunci 2&#10;Kata kunci 3&#10;(satu per baris)"></textarea>
+    <div class="row">
+      <input id="tanggal" class="inp" placeholder="Tanggal (dd/mm/yyyy)" />
+      <input id="vol-manual" class="inp" type="number" placeholder="Volume" value="1" min="1" />
+    </div>
+    <textarea id="objek-manual" class="inp" rows="2" placeholder="Objek Kerja / Topik (sama untuk semua kata kunci)"></textarea>
+    <small style="font-size:11px;color:#888;display:block;margin-bottom:6px">Setiap klik "Isi Form" = isi 1 kata kunci berikutnya. Tanggal &amp; Objek Kerja tetap sama.</small>
+    <div id="kata-progress" style="font-size:12px;color:#1565c0;font-weight:600;margin-bottom:6px;display:none"></div>
+    <div class="btngrp">
+      <button class="btn pri" id="go">Isi Form</button>
+      <button class="btn suc" id="go-save">Isi &amp; Save</button>
+      <button class="btn warn" id="kata-reset" style="display:none;font-size:11px">Reset Urutan</button>
+    </div>
+    <div id="status" class="msg"></div>
+  </div>
+
+  <!-- CONFIG -->
+  <div class="pane" id="p-cfg">
+    <label class="lbl">Tambah Template:</label>
+    <input id="c-label" class="inp" placeholder="Nama / Label template" />
+    <input id="c-kata" class="inp" placeholder="Kata kunci pencarian di popup Kamus Aktifitas" />
+    <div class="row">
+      <input id="c-vol" class="inp" type="number" placeholder="Volume" value="1" min="1" />
+      <input id="c-delay" class="inp" type="number" placeholder="Delay (ms)" value="500" min="100" />
+    </div>
+    <textarea id="c-objek" class="inp" rows="2" placeholder="Objek Kerja / Topik"></textarea>
+    <small style="font-size:11px;color:#888;display:block;margin-bottom:6px">Detail Aktifitas, Satuan, dan WPT otomatis terisi dari popup Kamus Aktifitas</small>
+    <button class="btn pri" id="c-add">Tambah</button>
+
+    <label class="lbl" style="margin-top:14px">Template Tersimpan:</label>
+    <div id="c-list"></div>
+
+    <div class="btngrp" style="margin-top:14px">
+      <button class="btn pri" id="c-save">Simpan Konfigurasi</button>
+      <button class="btn dan" id="c-reset">Reset Default</button>
+    </div>
+  </div>
+
+  <!-- MAPPING -->
+  <div class="pane" id="p-map">
+    <label class="lbl">Mapping Kata Kunci (Kegiatan &rarr; Popup)</label>
+    <small style="font-size:11px;color:#888;display:block;margin-bottom:10px">
+      Setiap kegiatan di Excel bisa punya beberapa kata kunci pencarian di popup Kamus Aktifitas.<br>
+      Tiap kata kunci = 1x isi form. Contoh: "Melaksanakan tindakan keperawatan tepat waktu" &rarr; 3 kata kunci.
+    </small>
+    <label class="lbl">Tambah / Edit Mapping:</label>
+    <input id="m-aktivitas" class="inp" placeholder="Nama kegiatan (dari kolom Excel / ketik manual)" />
+    <textarea id="m-katakunci" class="inp" rows="4" placeholder="Kata kunci pencarian popup (1 per baris)&#10;contoh:&#10;Sampling Darah Vena Instalasi&#10;Terapi Injeksi Parenteral&#10;Pasang Infus"></textarea>
+    <button class="btn pri" id="m-add" style="margin-bottom:12px">Simpan Mapping</button>
+    <label class="lbl">Mapping Tersimpan:</label>
+    <div id="m-list"></div>
+  </div>
+
+  <!-- EXCEL -->
+  <div class="pane" id="p-excel">
+    <label class="lbl">Import data dari Excel (.xlsx / .csv):</label>
+    <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" class="inp" style="padding:5px" />
+    <small style="font-size:11px;color:#888;display:block;margin-bottom:6px">
+      Kolom: No | Tanggal | Kegiatan Tugas Jabatan | Obyek Kerja | Volume
+    </small>
+    <div class="row" style="margin-bottom:8px;align-items:center">
+      <label style="font-size:11px;color:#555;white-space:nowrap">Filter No:</label>
+      <input id="excel-no-dari" class="inp" type="number" placeholder="Dari" value="3" min="1" style="width:70px" />
+      <span style="font-size:11px;color:#888">s/d</span>
+      <input id="excel-no-sampai" class="inp" type="number" placeholder="Sampai" value="7" min="1" style="width:70px" />
+      <button class="btn pri" id="excel-reload" style="font-size:11px;padding:5px 10px">Reload</button>
+    </div>
+    <div id="excel-preview" style="max-height:220px;overflow-y:auto;margin-bottom:10px"></div>
+    <div id="excel-info" style="font-size:12px;color:#555;margin-bottom:8px"></div>
+    <div class="btngrp">
+      <button class="btn pri" id="excel-fill" disabled>Isi Baris Saat Ini</button>
+      <button class="btn suc" id="excel-fill-save" disabled>Isi &amp; Save Baris Ini</button>
+    </div>
+    <div style="margin-top:8px">
+      <button class="btn warn" id="excel-prev" disabled style="font-size:11px;padding:5px 10px">&laquo; Prev</button>
+      <span id="excel-pos" style="font-size:12px;margin:0 10px"></span>
+      <button class="btn warn" id="excel-next" disabled style="font-size:11px;padding:5px 10px">Next &raquo;</button>
+    </div>
+    <div id="excel-status" class="msg"></div>
+  </div>
+
+  <!-- DETECT -->
+  <div class="pane" id="p-det">
+    <label class="lbl">Field form yang terdeteksi di halaman target:</label>
+    <p style="font-size:11px;color:#888;margin-bottom:8px">Klik "Deteksi Ulang" setelah halaman form terbuka di iframe atau setelah inject bookmarklet di tab Si-MASTER.</p>
+    <div id="det-list"></div>
+    <button class="btn pri" id="det-btn" style="margin-top:8px">Deteksi Ulang</button>
+    <div id="det-status" class="msg"></div>
+  </div>
+
+  <!-- TARGET IFRAME -->
+  <div class="iframe-section">
+    <label>Halaman Target (opsional — bisa juga buka Si-MASTER di tab terpisah):</label>
+    <div class="iframe-url-row">
+      <input id="iframe-url" class="inp" value="https://master.bkd.jatimprov.go.id" placeholder="URL halaman Si-MASTER" />
+      <button class="btn pri" id="iframe-go">Buka</button>
+    </div>
+    <p style="font-size:11px;color:#c62828;margin-bottom:8px"><strong>Catatan:</strong> Iframe mungkin diblokir oleh kebijakan keamanan Si-MASTER (X-Frame-Options). Jika tidak bisa di-load, gunakan bookmarklet di tab terpisah.</p>
+    <iframe id="target-frame" src="about:blank"></iframe>
+  </div>
+</div>
+
+<div class="app-footer">
+  E-MASTER AutoFill Browser Version &mdash; MIT License &mdash; Data tersimpan lokal di browser (localStorage)
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ============================================================
+  //  KONFIGURASI DEFAULT
+  // ============================================================
+  const DEFAULT_CONFIG = {
+    templates: [
+      { label: 'Administrasi Surat', kataKunci: 'administrasi surat', volume: 5, objekKerja: 'Surat masuk dan surat keluar' },
+      { label: 'Menyusun Laporan', kataKunci: 'menyusun laporan', volume: 1, objekKerja: 'Laporan kegiatan berkala' },
+      { label: 'Rapat Koordinasi', kataKunci: 'rapat koordinasi', volume: 1, objekKerja: 'Rapat internal' },
+      { label: 'Pelayanan Publik', kataKunci: 'pelayanan', volume: 3, objekKerja: 'Pelayanan tamu / masyarakat' },
+      { label: 'Pengelolaan Data', kataKunci: 'pengelolaan data', volume: 10, objekKerja: 'Data kepegawaian' },
+      { label: 'Tindakan Keperawatan', kataKunci: 'keperawatan', volume: 5, objekKerja: 'Pasien rawat inap / rawat jalan' },
+    ],
+    delayMs: 500,
+    popupWaitMs: 2000,
+    kataKunciMap: {
+      'Melaksanakan asuhan keperawatan sesuai SOP': ['Asuhan Keperawatan'],
+      'Menginput dokumentasi tindakan keperawatan': ['Dokumentasi Keperawatan'],
+      'Melaksanakan tindakan keperawatan tepat waktu': ['Sampling Darah Vena Instalasi', 'Terapi Injeksi Parenteral', 'Pasang Infus'],
+      'Melaksanakan prosedur keperawatan sesuai SOP': ['Sampling Darah Vena Instalasi', 'Terapi Injeksi Parenteral', 'Pasang Infus'],
+      'Menyiapkan alat medis pelayanan': ['Menyiapkan Alat Medis'],
+    },
+  };
+
+  // ============================================================
+  //  STORAGE — localStorage instead of GM_getValue/GM_setValue
+  // ============================================================
+  function loadConfig() {
+    try {
+      const saved = localStorage.getItem('emasterConfig3');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn('[EM-AutoFill] load error', e);
+    }
+    return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  }
+
+  function saveConfig(cfg) {
+    try {
+      localStorage.setItem('emasterConfig3', JSON.stringify(cfg));
+    } catch (e) {
+      console.warn('[EM-AutoFill] save error', e);
+    }
+  }
+
+  let config = loadConfig();
+
+  // ============================================================
+  //  DOM HELPERS
+  // ============================================================
+  const $ = (s, p) => (p || document).querySelector(s);
+  const $$ = (s, p) => [...(p || document).querySelectorAll(s)];
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function waitMs(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
+  // ============================================================
+  //  TARGET DOCUMENT — iframe or opened window
+  // ============================================================
+  let targetWin = null;
+
+  function getTargetDoc() {
+    // Try iframe first
+    try {
+      const iframe = $('#target-frame');
+      if (iframe && iframe.contentDocument && iframe.contentDocument.body &&
+          iframe.contentDocument.body.innerHTML.length > 50) {
+        return iframe.contentDocument;
+      }
+    } catch (e) { /* cross-origin */ }
+
+    // Try opened window
+    if (targetWin && !targetWin.closed) {
+      try {
+        if (targetWin.document && targetWin.document.body) {
+          return targetWin.document;
+        }
+      } catch (e) { /* cross-origin */ }
+    }
+
+    return null;
+  }
+
+  function getTargetWindow() {
+    try {
+      const iframe = $('#target-frame');
+      if (iframe && iframe.contentWindow && iframe.contentDocument &&
+          iframe.contentDocument.body && iframe.contentDocument.body.innerHTML.length > 50) {
+        return iframe.contentWindow;
+      }
+    } catch (e) { /* cross-origin */ }
+
+    if (targetWin && !targetWin.closed) {
+      try {
+        if (targetWin.document) return targetWin;
+      } catch (e) { /* cross-origin */ }
+    }
+
+    return null;
+  }
+
+  // ============================================================
+  //  FORM HELPERS (operate on target document)
+  // ============================================================
+  function setVal(el, v) {
+    if (!el) return false;
+    const proto = el instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+    if (setter) setter.call(el, v);
+    else el.value = v;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }
+
+  function findFieldByLabel(labelText, doc) {
+    const allLabels = [...(doc || document).querySelectorAll('td, th, label, span, div, b, strong')];
+    for (const lbl of allLabels) {
+      if (
+        lbl.childElementCount <= 1 &&
+        lbl.textContent.trim().toLowerCase().includes(labelText.toLowerCase())
+      ) {
+        let next = lbl.nextElementSibling;
+        while (next) {
+          const field =
+            next.querySelector('input, textarea, select') ||
+            (next.matches?.('input, textarea, select') ? next : null);
+          if (field) return field;
+          next = next.nextElementSibling;
+        }
+        const row = lbl.closest('tr');
+        if (row) {
+          const field = row.querySelector('input, textarea, select');
+          if (field) return field;
+        }
+        const parent = lbl.parentElement;
+        if (parent) {
+          const field = parent.querySelector('input, textarea, select');
+          if (field) return field;
+        }
+      }
+    }
+    return null;
+  }
+
+  function findPopupTrigger(doc) {
+    const detailField = findFieldByLabel('Detail Aktifitas', doc) || findFieldByLabel('Detail Aktivitas', doc);
+    if (detailField) {
+      const parent = detailField.parentElement;
+      if (parent) {
+        const triggers = [...parent.querySelectorAll('a, button, img, span, i')];
+        for (const t of triggers) {
+          const href = t.getAttribute('href') || '';
+          const onclick = t.getAttribute('onclick') || '';
+          const title = (t.getAttribute('title') || '').toLowerCase();
+          const cls = (t.className || '').toLowerCase();
+          if (
+            href.includes('popup') || onclick.includes('popup') ||
+            onclick.includes('window.open') || title.includes('cari') ||
+            title.includes('pilih') || title.includes('browse') ||
+            cls.includes('popup') || cls.includes('browse') ||
+            t.tagName === 'IMG'
+          ) {
+            return t;
+          }
+        }
+        const row = detailField.closest('tr') || parent;
+        const allClickable = [...row.querySelectorAll('a, button, img[onclick], span[onclick], i[onclick]')];
+        for (const t of allClickable) {
+          if (t !== detailField) return t;
+        }
+      }
+    }
+
+    if (!doc) doc = document;
+    const popupLink = doc.querySelector('a[href*="popup_aktifitas"], a[onclick*="popup_aktifitas"]');
+    if (popupLink) return popupLink;
+
+    const allOnclick = [...doc.querySelectorAll('[onclick*="popup"], [onclick*="window.open"]')];
+    for (const el of allOnclick) {
+      const onclick = el.getAttribute('onclick') || '';
+      if (onclick.includes('aktifitas') || onclick.includes('aktivitas')) {
+        return el;
+      }
+    }
+    return null;
+  }
+
+  function detectFields(doc) {
+    if (!doc) doc = getTargetDoc();
+    if (!doc) {
+      return {
+        kegiatan: null, tanggal: null, detail: null, satuan: null,
+        wpt: null, volume: null, objekKerja: null, popupTrigger: null,
+        saveBtn: null, cancelBtn: null,
+      };
+    }
+    return {
+      kegiatan: findFieldByLabel('Kegiatan Tugas Jabatan', doc),
+      tanggal: findFieldByLabel('Tanggal Aktivitas', doc),
+      detail: findFieldByLabel('Detail Aktifitas', doc) || findFieldByLabel('Detail Aktivitas', doc),
+      satuan: findFieldByLabel('Satuan', doc),
+      wpt: findFieldByLabel('WPT', doc),
+      volume: findFieldByLabel('Volume', doc),
+      objekKerja: findFieldByLabel('Objek Kerja', doc) || findFieldByLabel('Topik', doc),
+      popupTrigger: findPopupTrigger(doc),
+      saveBtn: [...doc.querySelectorAll('input[type="submit"], input[type="button"], button')].find(
+        (b) => b.value?.toLowerCase() === 'save' || b.textContent?.trim().toLowerCase() === 'save'
+      ),
+      cancelBtn: [...doc.querySelectorAll('input[type="submit"], input[type="button"], button')].find(
+        (b) => b.value?.toLowerCase() === 'cancel' || b.textContent?.trim().toLowerCase() === 'cancel'
+      ),
+    };
+  }
+
+  // ============================================================
+  //  POPUP HANDLER
+  // ============================================================
+  async function fillDetailViaPopup(kataKunci) {
+    const doc = getTargetDoc();
+    const win = getTargetWindow();
+    if (!doc || !win) {
+      return { ok: false, msg: 'Halaman target tidak terhubung. Buka Si-MASTER di iframe atau gunakan bookmarklet.' };
+    }
+
+    const trigger = findPopupTrigger(doc);
+    if (!trigger) {
+      return { ok: false, msg: 'Ikon popup Detail Aktifitas tidak ditemukan' };
+    }
+
+    let popupWin = null;
+    const origOpen = win.open;
+    win.open = function (...args) {
+      popupWin = origOpen.apply(this, args);
+      return popupWin;
+    };
+
+    trigger.click();
+
+    const maxWait = config.popupWaitMs || 3000;
+    const startTime = Date.now();
+    while (!popupWin && Date.now() - startTime < maxWait) {
+      await waitMs(200);
+    }
+
+    win.open = origOpen;
+
+    if (!popupWin) {
+      return { ok: false, msg: 'Popup tidak terbuka. Pastikan pop-up diizinkan untuk master.bkd.jatimprov.go.id' };
+    }
+
+    await waitMs(1500);
+
+    try {
+      const popupDoc = popupWin.document;
+      if (!popupDoc || !popupDoc.body) {
+        return { ok: false, msg: 'Tidak bisa akses konten popup (cross-origin?)' };
+      }
+
+      if (popupDoc.readyState !== 'complete') {
+        await new Promise((resolve) => {
+          popupWin.addEventListener('load', resolve);
+          setTimeout(resolve, 3000);
+        });
+      }
+
+      const searchInput =
+        popupDoc.querySelector('input[name*="aktifitas" i]') ||
+        popupDoc.querySelector('input[name*="aktivitas" i]') ||
+        popupDoc.querySelector('input[name*="search" i]') ||
+        popupDoc.querySelector('input[name*="cari" i]') ||
+        popupDoc.querySelector('input[name*="keyword" i]') ||
+        popupDoc.querySelector('input[type="text"]') ||
+        popupDoc.querySelector('input:not([type="hidden"]):not([type="submit"]):not([type="button"])');
+
+      if (!searchInput) {
+        popupWin.close();
+        return { ok: false, msg: 'Kolom pencarian "Aktifitas" di popup tidak ditemukan' };
+      }
+
+      searchInput.value = kataKunci;
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+      searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+      await waitMs(300);
+
+      const allBtns = [...popupDoc.querySelectorAll('input[type="submit"], input[type="button"], button')];
+      const cariBtn =
+        allBtns.find((b) => (b.value || b.textContent || '').trim().toLowerCase() === 'cari') ||
+        allBtns.find((b) => {
+          const t = (b.value || b.textContent || '').trim().toLowerCase();
+          return t.includes('cari') || t.includes('search') || t.includes('find');
+        }) ||
+        popupDoc.querySelector('input[type="submit"]');
+
+      if (cariBtn) {
+        cariBtn.click();
+      } else {
+        const form = searchInput.closest('form');
+        if (form) form.submit();
+        else searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
+      }
+
+      await waitMs(2000);
+
+      const rows = popupDoc.querySelectorAll('table tr');
+      let clicked = false;
+
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 2) {
+          if (row.onclick || row.getAttribute('onclick')) { row.click(); clicked = true; break; }
+          const link = row.querySelector('a');
+          if (link) { link.click(); clicked = true; break; }
+          for (const cell of cells) {
+            if (cell.onclick || cell.getAttribute('onclick')) { cell.click(); clicked = true; break; }
+            const cellLink = cell.querySelector('a');
+            if (cellLink) { cellLink.click(); clicked = true; break; }
+          }
+          if (clicked) break;
+          row.click(); clicked = true; break;
+        }
+      }
+
+      if (clicked) {
+        await waitMs(500);
+        return { ok: true, msg: 'Detail Aktifitas diisi via popup (kata kunci: "' + kataKunci + '")' };
+      }
+      return { ok: false, msg: 'Tidak ada hasil untuk kata kunci "' + kataKunci + '". Coba kata kunci lain.' };
+    } catch (e) {
+      return { ok: false, msg: 'Error popup: ' + e.message + '. Isi Detail Aktifitas manual, lalu klik "Isi Form" untuk field lainnya.' };
+    }
+  }
+
+  // ============================================================
+  //  EXCEL
+  // ============================================================
+  let excelData = [];
+  let excelRowIdx = 0;
+  let excelRawJson = null;
+
+  function handleExcelFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (evt) {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const wb = XLSX.read(data, { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        excelRawJson = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        loadExcelData();
+      } catch (err) {
+        excelMsg('Error membaca file: ' + err.message, 'e');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function loadExcelData() {
+    if (!excelRawJson) return;
+    const rawRows = parseExcelRows(excelRawJson);
+    excelData = expandWithMapping(rawRows);
+    if (excelData.length === 0) {
+      excelMsg('Tidak ada data ditemukan (cek filter No / mapping).', 'e');
+      $('#excel-fill').disabled = true;
+      $('#excel-fill-save').disabled = true;
+      $('#excel-preview').innerHTML = '';
+      $('#excel-pos').textContent = '';
+      return;
+    }
+    excelRowIdx = 0;
+    renderExcelPreview();
+    updateExcelNav();
+    const noDari = parseInt($('#excel-no-dari')?.value) || 1;
+    const noSampai = parseInt($('#excel-no-sampai')?.value) || 999;
+    excelMsg(excelData.length + ' item (No ' + noDari + '-' + noSampai + ', sudah di-expand dari mapping). Siap isi form.', 's');
+    $('#excel-fill').disabled = false;
+    $('#excel-fill-save').disabled = false;
+  }
+
+  function expandWithMapping(rows) {
+    const map = config.kataKunciMap || {};
+    const result = [];
+    for (const row of rows) {
+      const kegiatan = row.kataKunci;
+      let matched = false;
+      for (const [aktivitas, kataList] of Object.entries(map)) {
+        if (kegiatan.toLowerCase().includes(aktivitas.toLowerCase()) ||
+            aktivitas.toLowerCase().includes(kegiatan.toLowerCase())) {
+          for (const kata of kataList) {
+            result.push({ ...row, kataKunciPopup: kata, aktivitasExcel: kegiatan });
+          }
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        result.push({ ...row, kataKunciPopup: kegiatan, aktivitasExcel: kegiatan });
+      }
+    }
+    return result;
+  }
+
+  function parseExcelRows(json) {
+    let headerIdx = -1;
+    let colMap = {};
+    for (let i = 0; i < Math.min(json.length, 30); i++) {
+      const row = json[i].map((c) => String(c || '').toLowerCase().trim());
+      const hasKegiatan = row.some((c) => c.includes('kegiatan'));
+      const hasTanggal = row.some((c) => c.includes('tanggal'));
+      const hasVolume = row.some((c) => c.includes('volume'));
+      if (hasKegiatan && (hasTanggal || hasVolume)) {
+        headerIdx = i;
+        for (let j = 0; j < row.length; j++) {
+          if (row[j] === 'no' || row[j] === 'no.') colMap.no = j;
+          if (row[j].includes('tanggal')) colMap.tanggal = j;
+          if (row[j].includes('kegiatan')) colMap.kegiatan = j;
+          if (row[j].includes('obyek') || row[j].includes('objek') || row[j].includes('topik')) colMap.objekKerja = j;
+          if (row[j].includes('volume')) colMap.volume = j;
+        }
+        break;
+      }
+    }
+    if (headerIdx === -1) {
+      headerIdx = 0;
+      const row = json[0].map((c) => String(c || '').toLowerCase().trim());
+      for (let j = 0; j < row.length; j++) {
+        if (row[j] === 'no' || row[j] === 'no.') colMap.no = j;
+        if (row[j].includes('tanggal')) colMap.tanggal = j;
+        if (row[j].includes('kegiatan') || row[j].includes('kata kunci') || row[j].includes('aktifitas')) colMap.kegiatan = j;
+        if (row[j].includes('obyek') || row[j].includes('objek') || row[j].includes('topik')) colMap.objekKerja = j;
+        if (row[j].includes('volume')) colMap.volume = j;
+      }
+    }
+    if (colMap.kegiatan === undefined) return [];
+
+    const noDari = parseInt($('#excel-no-dari')?.value) || 1;
+    const noSampai = parseInt($('#excel-no-sampai')?.value) || 999;
+    const result = [];
+    let lastTanggal = '';
+
+    for (let i = headerIdx + 1; i < json.length; i++) {
+      const row = json[i];
+      const kegiatan = String(row[colMap.kegiatan] || '').trim();
+      if (!kegiatan) continue;
+      if (colMap.no !== undefined) {
+        const noVal = parseInt(row[colMap.no]);
+        if (!isNaN(noVal) && (noVal < noDari || noVal > noSampai)) {
+          if (colMap.tanggal !== undefined) {
+            const rawTgl = row[colMap.tanggal];
+            if (rawTgl) { const tgl = formatTanggal(rawTgl); if (tgl) lastTanggal = tgl; }
+          }
+          continue;
+        }
+      }
+      let tgl = '';
+      if (colMap.tanggal !== undefined) {
+        const rawTgl = row[colMap.tanggal];
+        if (rawTgl) { tgl = formatTanggal(rawTgl); if (tgl) lastTanggal = tgl; }
+      }
+      if (!tgl) tgl = lastTanggal;
+      const noVal = colMap.no !== undefined ? parseInt(row[colMap.no]) || '' : '';
+      const volume = colMap.volume !== undefined ? parseInt(row[colMap.volume]) || 1 : 1;
+      const objekKerja = colMap.objekKerja !== undefined ? String(row[colMap.objekKerja] || '').trim() : '';
+      result.push({ no: noVal, tanggal: tgl, kataKunci: kegiatan, volume, objekKerja });
+    }
+    return result;
+  }
+
+  function formatTanggal(val) {
+    if (!val) return '';
+    if (val instanceof Date) {
+      const dd = String(val.getDate()).padStart(2, '0');
+      const mm = String(val.getMonth() + 1).padStart(2, '0');
+      const yyyy = val.getFullYear();
+      return dd + '/' + mm + '/' + yyyy;
+    }
+    const s = String(val).trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return iso[3] + '/' + iso[2] + '/' + iso[1];
+    const dmy = s.match(/^(\d{2})-(\d{2})-(\d{4})/);
+    if (dmy) return dmy[1] + '/' + dmy[2] + '/' + dmy[3];
+    return '';
+  }
+
+  function renderExcelPreview() {
+    const box = $('#excel-preview');
+    if (!box || excelData.length === 0) return;
+    const start = Math.max(0, excelRowIdx - 2);
+    const end = Math.min(excelData.length, excelRowIdx + 5);
+    let html =
+      '<table style="width:100%;border-collapse:collapse;font-size:11px">' +
+      '<tr style="background:#1565c0;color:#fff"><th style="padding:4px">#</th><th style="padding:4px">Tgl</th><th style="padding:4px">Kata Kunci Popup</th><th style="padding:4px">Vol</th></tr>';
+    for (let i = start; i < end; i++) {
+      const d = excelData[i];
+      const isCurrent = i === excelRowIdx;
+      const bg = isCurrent ? '#e3f2fd;font-weight:700' : i % 2 === 0 ? '#fafafa' : '#fff';
+      const arrow = isCurrent ? '&#9654; ' : '';
+      const popup = d.kataKunciPopup || d.kataKunci;
+      html += '<tr style="background:' + bg + '">' +
+        '<td style="padding:3px 5px;border:1px solid #e0e0e0">' + arrow + (i + 1) + '</td>' +
+        '<td style="padding:3px 5px;border:1px solid #e0e0e0">' + esc(d.tanggal) + '</td>' +
+        '<td style="padding:3px 5px;border:1px solid #e0e0e0">' + esc(popup.substring(0, 35)) + (popup.length > 35 ? '...' : '') + '</td>' +
+        '<td style="padding:3px 5px;border:1px solid #e0e0e0">' + d.volume + '</td></tr>';
+    }
+    html += '</table>';
+    box.innerHTML = html;
+  }
+
+  function updateExcelNav() {
+    const total = excelData.length;
+    const pos = $('#excel-pos');
+    const prevBtn = $('#excel-prev');
+    const nextBtn = $('#excel-next');
+    if (pos) pos.textContent = 'Baris ' + (excelRowIdx + 1) + ' / ' + total;
+    if (prevBtn) prevBtn.disabled = excelRowIdx <= 0;
+    if (nextBtn) nextBtn.disabled = excelRowIdx >= total - 1;
+    renderExcelPreview();
+  }
+
+  function navigateExcelRow(dir) {
+    excelRowIdx = Math.max(0, Math.min(excelData.length - 1, excelRowIdx + dir));
+    updateExcelNav();
+  }
+
+  async function doFillExcelRow(autoSave) {
+    if (excelData.length === 0 || excelRowIdx >= excelData.length) {
+      excelMsg('Tidak ada data untuk diisi.', 'w');
+      return;
+    }
+    const doc = getTargetDoc();
+    if (!doc) {
+      excelMsg('Halaman target tidak terhubung. Buka Si-MASTER di iframe atau gunakan bookmarklet.', 'e');
+      return;
+    }
+
+    const row = excelData[excelRowIdx];
+    excelMsg('Mengisi baris ' + (excelRowIdx + 1) + '...', 'i');
+    const f = detectFields(doc);
+    const log = [];
+
+    if (f.tanggal && row.tanggal) {
+      const cur = f.tanggal.value.replace(/[^0-9]/g, '');
+      if (!cur || cur === '00000000') {
+        setVal(f.tanggal, row.tanggal);
+        log.push('Tanggal: ' + row.tanggal);
+      } else {
+        log.push('Tanggal: sudah terisi (' + f.tanggal.value + ')');
+      }
+      await waitMs(config.delayMs);
+    }
+
+    const kataPopup = row.kataKunciPopup || row.kataKunci;
+    if (kataPopup) {
+      excelMsg('Item ' + (excelRowIdx + 1) + ': Popup \u2192 "' + kataPopup + '"...', 'i');
+      const popupResult = await fillDetailViaPopup(kataPopup);
+      log.push(popupResult.msg);
+      if (popupResult.ok) log.push('Detail, Satuan, WPT \u2192 terisi dari Kamus Aktifitas');
+      else log.push('Tip: Klik ikon titik 3 manual, lalu isi dari popup');
+      await waitMs(config.delayMs);
+    }
+
+    if (f.volume) { setVal(f.volume, String(row.volume)); log.push('Volume: ' + row.volume); await waitMs(config.delayMs); }
+    if (f.objekKerja && row.objekKerja) {
+      setVal(f.objekKerja, row.objekKerja);
+      log.push('Objek Kerja: ' + row.objekKerja.substring(0, 60) + (row.objekKerja.length > 60 ? '...' : ''));
+      await waitMs(config.delayMs);
+    }
+
+    if (autoSave && f.saveBtn) { f.saveBtn.click(); log.push('Tombol Save diklik!'); }
+    else if (autoSave) { log.push('Tombol Save tidak ditemukan \u2014 klik manual.'); }
+
+    excelMsg('Baris ' + (excelRowIdx + 1) + ' selesai:\n' + log.join('\n'), 's');
+    if (excelRowIdx < excelData.length - 1) { excelRowIdx++; updateExcelNav(); }
+  }
+
+  function excelMsg(text, type) {
+    const el = $('#excel-status');
+    if (!el) return;
+    el.className = 'msg ' + (type || 'i');
+    el.textContent = text;
+  }
+
+  // ============================================================
+  //  FILL LOGIC
+  // ============================================================
+  let manualKataIdx = 0;
+  let lastManualKataList = [];
+
+  function getManualKataList() {
+    const raw = $('#kata-manual').value.trim();
+    if (!raw) return [];
+    return raw.split('\n').map((s) => s.trim()).filter(Boolean);
+  }
+
+  function updateKataProgress() {
+    const list = getManualKataList();
+    const prog = $('#kata-progress');
+    const resetBtn = $('#kata-reset');
+    if (!prog) return;
+    if (list.length <= 1) {
+      prog.style.display = 'none';
+      if (resetBtn) resetBtn.style.display = 'none';
+      return;
+    }
+    const key = list.join('|');
+    const lastKey = lastManualKataList.join('|');
+    if (key !== lastKey) { manualKataIdx = 0; lastManualKataList = list; }
+    const idx = Math.min(manualKataIdx, list.length - 1);
+    prog.style.display = 'block';
+    prog.textContent = 'Kata kunci ' + (idx + 1) + ' / ' + list.length + ': "' + list[idx] + '"';
+    if (resetBtn) resetBtn.style.display = 'inline-block';
+  }
+
+  function getSelected() {
+    const card = document.querySelector('.card.on');
+    if (!card) return null;
+    return config.templates[parseInt(card.dataset.i)] || null;
+  }
+
+  async function doFill(autoSave) {
+    const doc = getTargetDoc();
+    if (!doc) {
+      msg('Halaman target tidak terhubung.\n\nGunakan bookmarklet atau buka Si-MASTER di iframe.', 'e');
+      return;
+    }
+
+    const kataList = getManualKataList();
+    const manualVol = $('#vol-manual').value.trim();
+    const manualObjek = $('#objek-manual').value.trim();
+    const tglInput = $('#tanggal').value.trim();
+
+    let tpl;
+    if (kataList.length > 0) {
+      const idx = Math.min(manualKataIdx, kataList.length - 1);
+      tpl = { kataKunci: kataList[idx], volume: parseInt(manualVol) || 1, objekKerja: manualObjek };
+    } else {
+      const sel = getSelected();
+      if (!sel) { msg('Pilih template atau isi kata kunci manual!', 'w'); return; }
+      tpl = { ...sel };
+    }
+
+    msg('Mengisi form...', 'i');
+    const f = detectFields(doc);
+    const log = [];
+
+    if (f.tanggal) {
+      let tgl = tglInput;
+      if (!tgl) {
+        const now = new Date();
+        tgl = String(now.getDate()).padStart(2, '0') + '/' + String(now.getMonth() + 1).padStart(2, '0') + '/' + now.getFullYear();
+      }
+      const cur = f.tanggal.value.replace(/[^0-9]/g, '');
+      if (!cur || cur === '00000000') { setVal(f.tanggal, tgl); log.push('Tanggal: ' + tgl); }
+      else { log.push('Tanggal: sudah terisi (' + f.tanggal.value + ')'); }
+      await waitMs(config.delayMs);
+    }
+
+    if (tpl.kataKunci) {
+      msg('Mengisi form...\nMembuka popup Kamus Aktifitas...', 'i');
+      const popupResult = await fillDetailViaPopup(tpl.kataKunci);
+      log.push(popupResult.msg);
+      if (popupResult.ok) log.push('Detail Aktifitas, Satuan, WPT \u2192 terisi dari Kamus Aktifitas');
+      else log.push('Tip: Klik ikon titik 3 manual \u2192 cari & klik hasil \u2192 lalu klik "Isi Form" lagi untuk Volume & Objek Kerja');
+      await waitMs(config.delayMs);
+    }
+
+    if (f.volume) { setVal(f.volume, String(tpl.volume)); log.push('Volume: ' + tpl.volume); await waitMs(config.delayMs); }
+    if (f.objekKerja) { setVal(f.objekKerja, tpl.objekKerja); log.push('Objek Kerja: ' + tpl.objekKerja); await waitMs(config.delayMs); }
+
+    if (log.length === 0) { msg('Tidak ada field yang terdeteksi!\nPastikan halaman form Aktivitas Harian terbuka.', 'e'); return; }
+
+    if (autoSave && f.saveBtn) { f.saveBtn.click(); log.push('Tombol Save diklik!'); }
+    else if (autoSave) { log.push('Tombol Save tidak ditemukan \u2014 klik manual.'); }
+
+    msg(log.join('\n'), 's');
+
+    if (kataList.length > 1 && manualKataIdx < kataList.length - 1) {
+      manualKataIdx++;
+      updateKataProgress();
+      msg(log.join('\n') + '\n\nKata kunci berikutnya: "' + kataList[manualKataIdx] + '" (' + (manualKataIdx + 1) + '/' + kataList.length + ')', 's');
+    } else if (kataList.length > 1 && manualKataIdx >= kataList.length - 1) {
+      msg(log.join('\n') + '\n\nSemua kata kunci sudah diisi!', 's');
+    }
+  }
+
+  // ============================================================
+  //  RENDER
+  // ============================================================
+  function renderTemplates() {
+    const box = $('#tpl-list');
+    if (!box) return;
+    box.innerHTML = config.templates.map((t, i) =>
+      '<div class="card" data-i="' + i + '">' +
+        '<div class="card-t">' + esc(t.label) + '</div>' +
+        '<div class="card-d">Cari: "' + esc(t.kataKunci) + '"</div>' +
+        '<span class="badge">Vol ' + t.volume + '</span>' +
+        '<span class="badge">' + esc(t.objekKerja) + '</span>' +
+      '</div>'
+    ).join('');
+
+    box.querySelectorAll('.card').forEach((c) =>
+      c.addEventListener('click', () => {
+        box.querySelectorAll('.card').forEach((x) => x.classList.remove('on'));
+        c.classList.add('on');
+      })
+    );
+  }
+
+  function renderSavedList() {
+    const box = $('#c-list');
+    if (!box) return;
+    box.innerHTML = config.templates.map((t, i) =>
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;border:1px solid #e0e0e0;border-radius:5px;margin-bottom:4px;font-size:12px">' +
+        '<span>' + esc(t.label) + ' (vol ' + t.volume + ')</span>' +
+        '<button class="del" data-i="' + i + '" title="Hapus">&times;</button>' +
+      '</div>'
+    ).join('');
+
+    box.querySelectorAll('.del').forEach((b) =>
+      b.addEventListener('click', () => {
+        const i = parseInt(b.dataset.i);
+        if (confirm('Hapus "' + config.templates[i].label + '"?')) {
+          config.templates.splice(i, 1);
+          saveConfig(config);
+          renderTemplates();
+          renderSavedList();
+        }
+      })
+    );
+  }
+
+  function renderMappingList() {
+    const box = $('#m-list');
+    if (!box) return;
+    const map = config.kataKunciMap || {};
+    const entries = Object.entries(map);
+    if (entries.length === 0) {
+      box.innerHTML = '<div style="font-size:11px;color:#888;padding:4px">Belum ada mapping.</div>';
+      return;
+    }
+    box.innerHTML = entries.map(([aktivitas, kataList]) =>
+      '<div style="border:1px solid #e0e0e0;border-radius:5px;padding:8px;margin-bottom:5px;font-size:11px">' +
+        '<div style="font-weight:600;color:#333;margin-bottom:3px">' + esc(aktivitas) + '</div>' +
+        '<div style="color:#1565c0">' + kataList.map((k) => '\u2022 ' + esc(k)).join('<br>') + '</div>' +
+        '<div style="margin-top:4px">' +
+          '<button class="m-edit" data-key="' + esc(aktivitas) + '" style="font-size:10px;cursor:pointer;color:#1565c0;background:none;border:none;padding:0;text-decoration:underline">Edit</button>' +
+          '<button class="m-del" data-key="' + esc(aktivitas) + '" style="font-size:10px;cursor:pointer;color:#c62828;background:none;border:none;padding:0;text-decoration:underline;margin-left:10px">Hapus</button>' +
+        '</div>' +
+      '</div>'
+    ).join('');
+
+    box.querySelectorAll('.m-del').forEach((b) =>
+      b.addEventListener('click', () => {
+        const key = b.dataset.key;
+        if (confirm('Hapus mapping "' + key + '"?')) {
+          delete config.kataKunciMap[key];
+          saveConfig(config);
+          renderMappingList();
+        }
+      })
+    );
+
+    box.querySelectorAll('.m-edit').forEach((b) =>
+      b.addEventListener('click', () => {
+        const key = b.dataset.key;
+        const kataList = config.kataKunciMap[key] || [];
+        $('#m-aktivitas').value = key;
+        $('#m-katakunci').value = kataList.join('\n');
+      })
+    );
+  }
+
+  function renderDetected() {
+    const doc = getTargetDoc();
+    const detStatus = $('#det-status');
+    if (!doc) {
+      if (detStatus) { detStatus.className = 'msg e'; detStatus.textContent = 'Halaman target tidak terhubung. Buka Si-MASTER di iframe atau gunakan bookmarklet.'; }
+      return;
+    }
+    if (detStatus) { detStatus.className = 'msg'; detStatus.textContent = ''; }
+
+    const f = detectFields(doc);
+    const map = {
+      kegiatan: 'Kegiatan Tugas Jabatan',
+      tanggal: 'Tanggal Aktivitas',
+      detail: 'Detail Aktifitas (dari popup)',
+      popupTrigger: 'Ikon Popup Detail (titik 3)',
+      satuan: 'Satuan (dari popup)',
+      wpt: 'WPT (dari popup)',
+      volume: 'Volume',
+      objekKerja: 'Objek Kerja / Topik',
+      saveBtn: 'Tombol Save',
+      cancelBtn: 'Tombol Cancel',
+    };
+    const box = $('#det-list');
+    box.innerHTML = Object.entries(map).map(([k, label]) => {
+      const el = f[k];
+      const ok = !!el;
+      const tag = el
+        ? '<' + el.tagName.toLowerCase() + (el.name ? ' name="' + el.name + '"' : '') + (el.id ? ' id="' + el.id + '"' : '') + '>'
+        : 'Tidak ditemukan';
+      return '<div class="det ' + (ok ? 'ok' : 'no') + '">' + label + ': ' + esc(tag) + '</div>';
+    }).join('');
+  }
+
+  function msg(text, type) {
+    const el = $('#status');
+    if (!el) return;
+    el.className = 'msg ' + (type || 'i');
+    el.textContent = text;
+  }
+
+  function addTemplate() {
+    const label = $('#c-label').value.trim();
+    const kataKunci = $('#c-kata').value.trim();
+    const vol = parseInt($('#c-vol').value) || 1;
+    const objek = $('#c-objek').value.trim();
+    if (!label) { msg('Nama template harus diisi!', 'w'); return; }
+    if (!kataKunci) { msg('Kata kunci pencarian harus diisi!', 'w'); return; }
+    config.templates.push({ label, kataKunci, volume: vol, objekKerja: objek || label });
+    saveConfig(config);
+    $('#c-label').value = '';
+    $('#c-kata').value = '';
+    $('#c-vol').value = '1';
+    $('#c-objek').value = '';
+    renderTemplates();
+    renderSavedList();
+    msg('Template "' + label + '" ditambahkan!', 's');
+  }
+
+  function addMapping() {
+    const aktivitas = $('#m-aktivitas').value.trim();
+    const kataRaw = $('#m-katakunci').value.trim();
+    if (!aktivitas) { msg('Nama aktivitas harus diisi!', 'w'); return; }
+    if (!kataRaw) { msg('Kata kunci harus diisi (minimal 1 baris)!', 'w'); return; }
+    const kataList = kataRaw.split('\n').map((s) => s.trim()).filter(Boolean);
+    if (kataList.length === 0) { msg('Kata kunci tidak boleh kosong!', 'w'); return; }
+    if (!config.kataKunciMap) config.kataKunciMap = {};
+    config.kataKunciMap[aktivitas] = kataList;
+    saveConfig(config);
+    $('#m-aktivitas').value = '';
+    $('#m-katakunci').value = '';
+    renderMappingList();
+    msg('Mapping "' + aktivitas + '" \u2192 ' + kataList.length + ' kata kunci disimpan!', 's');
+  }
+
+  // ============================================================
+  //  BOOKMARKLET GENERATOR
+  // ============================================================
+  function generateBookmarklet() {
+    const code = `javascript:void(function(){if(document.getElementById('em-panel')){document.getElementById('em-panel').style.display='';return}var s=document.createElement('script');s.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';document.head.appendChild(s);var c=JSON.parse(localStorage.getItem('emasterConfig3')||'null');var cfg=c||${JSON.stringify(DEFAULT_CONFIG)};` +
+    `var style=document.createElement('style');style.textContent='#em-panel{position:fixed;top:16px;right:16px;width:370px;max-height:85vh;background:%23fff;border:2px solid %231565c0;border-radius:10px;box-shadow:0 6px 28px rgba(0,0,0,.18);z-index:2147483647;font:13px/1.45 Segoe UI,Tahoma,sans-serif;color:%23333;display:flex;flex-direction:column}%23em-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:linear-gradient(135deg,%231565c0,%230d47a1);color:%23fff;border-radius:8px 8px 0 0;cursor:move;user-select:none}%23em-hdr span{font-weight:700;font-size:13px}%23em-hdr button{background:rgba(255,255,255,.2);border:none;color:%23fff;width:24px;height:24px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700;margin-left:4px}%23em-hdr button:hover{background:rgba(255,255,255,.35)}%23em-body{padding:10px 12px;overflow-y:auto;flex:1}';document.head.appendChild(style);` +
+    `alert('E-MASTER AutoFill panel dimuat! Refresh halaman ini jika panel tidak muncul.')}())`;
+    return code;
+  }
+
+  // ============================================================
+  //  EVENTS
+  // ============================================================
+  function bindEvents() {
+    // Tabs
+    $$('.tab').forEach((t) =>
+      t.addEventListener('click', () => {
+        $$('.tab').forEach((x) => x.classList.remove('on'));
+        $$('.pane').forEach((x) => x.classList.remove('on'));
+        t.classList.add('on');
+        $('#p-' + t.dataset.t).classList.add('on');
+      })
+    );
+
+    // Fill
+    $('#go').onclick = () => doFill(false);
+    $('#go-save').onclick = () => doFill(true);
+
+    // Config
+    $('#c-add').onclick = addTemplate;
+    $('#m-add').onclick = addMapping;
+    $('#c-save').onclick = () => {
+      config.delayMs = parseInt($('#c-delay').value) || 500;
+      saveConfig(config);
+      msg('Konfigurasi disimpan!', 's');
+    };
+    $('#c-reset').onclick = () => {
+      if (!confirm('Reset semua template dan mapping ke default?')) return;
+      config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+      saveConfig(config);
+      renderTemplates();
+      renderSavedList();
+      renderMappingList();
+      msg('Reset ke default.', 'i');
+    };
+
+    // Detect
+    $('#det-btn').onclick = renderDetected;
+
+    // Manual kata kunci
+    $('#kata-manual').addEventListener('input', updateKataProgress);
+    $('#kata-reset').onclick = () => {
+      manualKataIdx = 0;
+      updateKataProgress();
+      msg('Urutan kata kunci direset ke awal.', 'i');
+    };
+
+    // Excel
+    $('#excel-file').onchange = handleExcelFile;
+    $('#excel-fill').onclick = () => doFillExcelRow(false);
+    $('#excel-fill-save').onclick = () => doFillExcelRow(true);
+    $('#excel-prev').onclick = () => navigateExcelRow(-1);
+    $('#excel-next').onclick = () => navigateExcelRow(1);
+    $('#excel-reload').onclick = () => { if (!excelRawJson) { excelMsg('Upload file Excel dulu.', 'w'); return; } loadExcelData(); };
+
+    // Iframe
+    $('#iframe-go').onclick = () => {
+      const url = $('#iframe-url').value.trim();
+      if (url) $('#target-frame').src = url;
+    };
+
+    // Bookmarklet
+    const bmLink = $('#bookmarklet-link');
+    if (bmLink) {
+      bmLink.href = generateBookmarklet();
+    }
+  }
+
+  // ============================================================
+  //  INIT
+  // ============================================================
+  function init() {
+    bindEvents();
+    renderTemplates();
+    renderSavedList();
+    renderMappingList();
+    $('#c-delay').value = config.delayMs;
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>
