@@ -233,6 +233,12 @@ function esc(s) { const d=document.createElement('div'); d.textContent=s; return
 // =========================================================================
 // EXCEL → JSON CONVERSION (replaces convert_excel.py)
 // =========================================================================
+function parseIntSafe(val) {
+  if (val == null || val === '') return '';
+  var n = parseInt(val, 10);
+  return isNaN(n) ? '' : String(n);
+}
+
 function convertExcelToJSON(rawRows) {
   // Find header row
   let headerIdx = -1;
@@ -304,9 +310,9 @@ function convertExcelToJSON(rawRows) {
     if (SKIP_KEGIATAN.has(kegiatan.toLowerCase().trim())) continue;
 
     const objek = colMap.objek_kerja !== undefined ? String(row[colMap.objek_kerja]||'').trim() : '';
-    const vol = colMap.volume !== undefined ? String(parseInt(row[colMap.volume])||'') : '';
-    const durasi = colMap.durasi !== undefined ? String(parseInt(row[colMap.durasi])||'') : '';
-    const beban = colMap.beban_kerja !== undefined ? String(parseInt(row[colMap.beban_kerja])||'') : '';
+    const vol = colMap.volume !== undefined ? parseIntSafe(row[colMap.volume]) : '';
+    const durasi = colMap.durasi !== undefined ? parseIntSafe(row[colMap.durasi]) : '';
+    const beban = colMap.beban_kerja !== undefined ? parseIntSafe(row[colMap.beban_kerja]) : '';
 
     const entry = {
       hari: curHari,
@@ -367,17 +373,27 @@ function convertExcelToJSON(rawRows) {
   };
 }
 
+function excelSerialToDate(serial) {
+  var epoch = new Date(Date.UTC(1899, 11, 30));
+  return new Date(epoch.getTime() + serial * 86400000);
+}
+
 function formatDate(val) {
-  if (!val) return '';
-  if (val instanceof Date) {
-    const dd = String(val.getDate()).padStart(2,'0');
-    const mm = String(val.getMonth()+1).padStart(2,'0');
-    return dd + '-' + mm + '-' + val.getFullYear();
+  if (val == null || val === '') return '';
+  if (typeof val === 'number' && val > 1 && val < 200000) {
+    val = excelSerialToDate(val);
   }
-  const s = String(val).trim();
+  if (val instanceof Date) {
+    var dd = String(val.getUTCDate()).padStart(2,'0');
+    var mm = String(val.getUTCMonth()+1).padStart(2,'0');
+    var yyyy = val.getUTCFullYear();
+    if (yyyy < 1900 || yyyy > 2100) return '';
+    return dd + '-' + mm + '-' + yyyy;
+  }
+  var s = String(val).trim();
   if (/^\d{2}-\d{2}-\d{4}$/.test(s)) return s;
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s.replace(/\//g,'-');
-  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  var iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return iso[3]+'-'+iso[2]+'-'+iso[1];
   return s;
 }
