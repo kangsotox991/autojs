@@ -1,106 +1,111 @@
-# E-MASTER AutoFill — Browser Version
+# e-MASTER Auto Fill — Browser Version
 
-Versi browser dari skrip [E-MASTER AutoFill](https://github.com/kangsotox991/emasterjs) untuk mengisi otomatis form **Aktivitas Harian SKP** di aplikasi [Si-MASTER BKD Jatim](https://master.bkd.jatimprov.go.id).
+Versi browser dari [e-MASTER Auto Fill](https://github.com/gilelundro01/emaster) untuk pengisian otomatis **Aktivitas Kinerja Harian** di aplikasi [Si-MASTER BKD Jatim](https://master.bkd.jatimprov.go.id/).
 
-> **Tidak perlu Tampermonkey / Greasemonkey** — cukup buka file `index.html` di browser.
-
----
-
-## Perbedaan dengan Versi Userscript
-
-| Fitur | Userscript (Tampermonkey) | Browser Version |
-|---|---|---|
-| Instalasi | Perlu extension Tampermonkey | Langsung buka di browser |
-| Penyimpanan data | Tampermonkey storage (`GM_getValue/GM_setValue`) | `localStorage` browser |
-| Cara pakai | Otomatis inject di halaman Si-MASTER | Buka `index.html`, lalu hubungkan ke Si-MASTER via iframe atau bookmarklet |
-| Library XLSX | `@require` dari CDN | `<script>` tag dari CDN |
-| Dependency | Tampermonkey extension | Tidak ada |
+> **Tidak perlu Tampermonkey, tidak perlu Python** — cukup buka file `index.html` di browser.
 
 ---
 
 ## Fitur
 
-- **GUI Panel** — antarmuka lengkap untuk mengisi form aktivitas harian
-- **Template Aktivitas** — simpan template kegiatan yang sering dipakai
-- **Detail Aktifitas via Popup** — otomatis buka popup "Kamus Aktifitas Harian", cari kata kunci, dan klik hasil
-- **Import Excel** — upload file Excel (.xlsx / .csv) untuk isi form dari data spreadsheet
-- **Mapping Kata Kunci** — satu kegiatan di Excel bisa punya beberapa kata kunci pencarian popup
-- **Konfigurasi** — tambah/hapus template, atur delay, reset ke default
-- **Bookmarklet** — inject panel langsung ke halaman Si-MASTER
-- **Iframe** — buka Si-MASTER langsung di dalam halaman (jika diizinkan oleh server)
+- **Import Excel langsung di browser** — konversi `.xlsx` ke JSON tanpa Python (`convert_excel.py` sudah digantikan SheetJS)
+- **Import JSON** — file JSON hasil `convert_excel.py` tetap bisa diimport
+- **Bookmarklet** — inject panel auto-fill langsung ke halaman Si-MASTER
+- **Auto-fill dengan state persist** — proses isi form otomatis: Tambah → isi → Save → ulangi
+- **Popup Kamus Aktifitas** — otomatis cari dan klik aktivitas di popup Kamus
+- **Mapping Kamus** — konfigurasi kata kunci pencarian per breakdown kegiatan
+- **Preview data** — lihat breakdown dan entry sebelum menjalankan auto-fill
+- **Semua data lokal** — tersimpan di `localStorage` browser (bukan server)
+
+---
+
+## Perbedaan dengan Versi Asli
+
+| Komponen | Versi Asli | Versi Browser |
+|---|---|---|
+| Konversi Excel | Python (`convert_excel.py`) | Browser (SheetJS library) |
+| Auto-fill | Selenium CLI / Tampermonkey | Bookmarklet (inject ke halaman) |
+| GUI | Python tkinter (`emaster_gui.py`) | HTML di browser |
+| Penyimpanan | `GM_setValue` / file JSON | `localStorage` browser |
+| Dependency | Python 3.10+, openpyxl, selenium | Tidak ada (cukup browser) |
 
 ---
 
 ## Cara Pakai
 
-### Opsi 1: Bookmarklet (Direkomendasikan)
+### 1. Import Data
 
-1. Buka file `index.html` di browser
-2. Drag tombol **"E-MASTER AutoFill"** ke bookmark bar
-3. Buka [Si-MASTER](https://master.bkd.jatimprov.go.id) di tab baru dan **login manual**
-4. Navigasi ke halaman form **Aktivitas Harian**
-5. Klik bookmarklet di bookmark bar — panel AutoFill akan muncul
-6. Pilih template / isi kata kunci → klik **Isi Form** atau **Isi & Save**
+Buka file `index.html` di browser.
 
-### Opsi 2: Buka Langsung
+**Opsi A: Import Excel**
+- Upload file Excel (`.xlsx`) di tab "Import Data"
+- Kolom yang dibutuhkan: **No, Hari, Tanggal, Kegiatan Tugas Jabatan, Obyek Kerja, Volume, Durasi (Menit)**
+- Kegiatan "Briefing" dan "Timbang Terima" otomatis diskip
+- Data langsung dikonversi dan disimpan
 
-1. Buka file `index.html` di browser
-2. Atur template dan konfigurasi di panel
-3. Buka [Si-MASTER](https://master.bkd.jatimprov.go.id) di iframe (bagian bawah halaman)
-4. Login dan navigasi ke form Aktivitas Harian
-5. Gunakan tab "Isi Form" untuk mengisi data
+**Opsi B: Import JSON**
+- Upload file JSON (hasil `python convert_excel.py`) di tab yang sama
+- Format JSON sama dengan output `convert_excel.py`
 
-> **Catatan:** Iframe mungkin diblokir oleh kebijakan keamanan Si-MASTER (X-Frame-Options). Jika tidak bisa di-load, gunakan bookmarklet.
+### 2. Setup Bookmarklet
 
----
+Di tab "Bookmarklet":
+- Drag tombol biru **"e-MASTER Auto Fill"** ke bookmark bar browser
+- Atau copy kode dari text area dan paste di Developer Console (F12)
 
-## Tab-Tab yang Tersedia
+### 3. Jalankan Auto-Fill
 
-### Tab "Isi Form"
-- Pilih template aktivitas (kartu biru) atau isi kata kunci manual
-- Opsional: isi tanggal manual (format dd/mm/yyyy), kosong = hari ini
-- Klik **Isi Form** atau **Isi & Save**
+1. Buka [Si-MASTER](https://master.bkd.jatimprov.go.id) dan **login manual** (NIP + Password + OTP)
+2. Buka halaman **Aktivitas Bulan** (`essmedia.php?module=aktifitas_bulan`)
+3. Klik icon **kunci pas** pada breakdown yang ingin diisi → masuk halaman realisasi
+4. Klik **bookmarklet** di bookmark bar → panel auto-fill muncul
+5. Pilih breakdown dari dropdown
+6. Klik **"Mulai Auto Fill"**
+7. Script otomatis: klik Tambah → isi form → klik Save → ulangi
 
-### Tab "Excel"
-- Upload file Excel (.xlsx) atau CSV
-- Kolom: **No**, **Tanggal**, **Kegiatan Tugas Jabatan**, **Obyek Kerja**, **Volume**
-- Navigasi baris data dengan Prev/Next
-- Filter berdasarkan kolom No
-
-### Tab "Mapping"
-- Atur mapping kegiatan → kata kunci pencarian popup
-- Satu kegiatan bisa punya beberapa kata kunci (1 kata kunci = 1x isi form)
-
-### Tab "Konfigurasi"
-- Tambah/hapus template
-- Atur delay antar pengisian
-- Reset ke default
-
-### Tab "Deteksi"
-- Lihat field form yang terdeteksi di halaman target
-- Hijau = ditemukan, Merah = tidak ditemukan
+State tersimpan di `localStorage`, jadi jika halaman reload, proses akan lanjut otomatis.
 
 ---
 
-## Template Default
+## Mapping Kamus Aktifitas
 
-| Template | Kata Kunci | Volume | Objek Kerja |
-|---|---|---|---|
-| Administrasi Surat | administrasi surat | 5 | Surat masuk dan surat keluar |
-| Menyusun Laporan | menyusun laporan | 1 | Laporan kegiatan berkala |
-| Rapat Koordinasi | rapat koordinasi | 1 | Rapat internal |
-| Pelayanan Publik | pelayanan | 3 | Pelayanan tamu / masyarakat |
-| Pengelolaan Data | pengelolaan data | 10 | Data kepegawaian |
-| Tindakan Keperawatan | keperawatan | 5 | Pasien rawat inap / rawat jalan |
+Di tab "Import Data", ada editor mapping kata kunci pencarian popup Kamus per kegiatan:
+
+```
+Melaksanakan asuhan keperawatan sesuai SOP [single]
+  - Manajemen Asuhan Keperawatan
+
+Melaksanakan tindakan keperawatan tepat waktu [rotating]
+  - Sampling Darah Vena Instalasi
+  - Terapi Injeksi Parenteral
+  - Pasang Infus
+```
+
+- **single**: satu kata kunci untuk semua entry dalam breakdown
+- **rotating**: setiap entry di-duplikasi untuk setiap kata kunci (1 entry Excel → N entry form)
 
 ---
 
-## Catatan Penting
+## Format Data Excel
 
-- **Skrip ini TIDAK menyimpan atau mengirimkan data login Anda**
-- Data konfigurasi template tersimpan lokal di browser (localStorage)
-- Selalu periksa data sebelum klik Save
-- Login tetap dilakukan manual
+| Kolom | Deskripsi | Contoh |
+|-------|-----------|--------|
+| No | Nomor urut per hari | 1, 2, 3 |
+| Hari | Nama hari | Rabu |
+| Tanggal | Tanggal aktivitas | 01-04-2026 |
+| Kegiatan Tugas Jabatan | Nama breakdown | Melaksanakan asuhan... |
+| Obyek Kerja | Detail/uraian kegiatan | Melakukan asuhan keperawatan... |
+| Volume | Jumlah volume | 3 |
+| Durasi (Menit) | Durasi = WPT | 28 |
+
+---
+
+## Catatan Keamanan
+
+- Skrip ini **TIDAK** menyimpan atau mengirimkan data login Anda
+- Semua data tersimpan lokal di browser (`localStorage`)
+- Login tetap dilakukan manual (NIP + Password + OTP)
+- File JSON tidak mengandung kredensial
 
 ## Lisensi
 
