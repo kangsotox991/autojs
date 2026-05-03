@@ -185,12 +185,12 @@ const DEFAULT_KAMUS = {
     mode: 'single'
   },
   'Melaksanakan tindakan keperawatan tepat waktu': {
-    keywords: ['Sampling Darah Vena Instalasi','Terapi Injeksi Parenteral','Pasang Infus','Terapi Injeksi Parenteral'],
-    mode: 'rotating'
+    keywords: ['Pasang Infus','Sampling Darah Vena Instalasi','Terapi Injeksi Parenteral'],
+    mode: 'multi'
   },
   'Melaksanakan prosedur keperawatan sesuai SOP': {
     keywords: ['Terapi Injeksi Line','Pasang Infus','Mengukur Tanda Tanda','Sampling Darah Vena Instalasi'],
-    mode: 'rotating'
+    mode: 'multi'
   },
   'Menyiapkan alat medis pelayanan': {
     keywords: ['Memeriksa Kelengkapan Alat'],
@@ -338,7 +338,7 @@ function convertExcelToJSON(rawRows) {
   for (const [kegName, entries] of Object.entries(grouped)) {
     const kamus = kamusMapping[kegName] || { keywords: [kegName], mode: 'single' };
     let expanded;
-    if (kamus.mode === 'rotating') {
+    if (kamus.mode === 'multi' && kamus.keywords.length > 1) {
       expanded = [];
       for (const entry of entries) {
         for (const kw of kamus.keywords) {
@@ -819,7 +819,7 @@ function parseKamusMapping(text) {
         result[current.name].keywords.push(trimmed.replace(/^[-*]\s*/, ''));
       }
     } else {
-      const m = trimmed.match(/^(.+?)\s*\[(single|rotating)\]\s*$/);
+      const m = trimmed.match(/^(.+?)\s*\[(single|multi)\]\s*$/);
       if (m) {
         current = { name: m[1].trim() };
         result[current.name] = { keywords: [], mode: m[2] };

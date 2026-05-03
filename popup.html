@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>e-MASTER Auto Fill</title>
+<script src="libs/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:13px/1.5 Arial,sans-serif;background:#f0f4f8;color:#333;width:420px;min-height:200px}
+
+.header{background:linear-gradient(135deg,#1565C0,#0D47A1);color:#fff;padding:12px 16px;text-align:center}
+.header h1{font-size:16px;font-weight:700}
+.header p{font-size:10px;opacity:.85;margin-top:2px}
+
+.tabs{display:flex;gap:2px;padding:0 8px;margin-top:8px}
+.tab{flex:1;padding:7px 4px;border:1px solid #ccc;border-bottom:none;border-radius:6px 6px 0 0;background:#f5f5f5;cursor:pointer;font-size:11px;font-weight:600;color:#666;text-align:center;transition:background .2s}
+.tab.on{background:#1565C0;color:#fff;border-color:#1565C0}
+.pane{display:none;background:#fff;border:1px solid #ccc;border-radius:0 0 6px 6px;padding:12px;margin:0 8px}
+.pane.on{display:block}
+
+h3{font-size:12px;color:#1565C0;margin:8px 0 4px;font-weight:bold}
+.desc{font-size:11px;color:#666;margin-bottom:6px}
+.inp{width:100%;padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px;margin-bottom:4px}
+.inp:focus{border-color:#1565C0;outline:none}
+
+.btn{padding:6px 12px;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;color:#fff;transition:opacity .2s}
+.btn:hover{opacity:.85}
+.pri{background:#1565C0}.suc{background:#4CAF50}
+
+.msg{margin-top:6px;padding:6px 8px;border-radius:4px;font-size:11px;line-height:1.4;white-space:pre-line;display:none}
+.msg.s{display:block;background:#E8F5E9;color:#2E7D32;border:1px solid #A5D6A7}
+.msg.e{display:block;background:#FFEBEE;color:#C62828;border:1px solid #EF9A9A}
+.msg.i{display:block;background:#E3F2FD;color:#1565C0;border:1px solid #90CAF9}
+
+.bd-item{padding:5px 8px;margin:3px 0;background:#f0f4ff;border-radius:4px;font-size:11px;display:flex;justify-content:space-between;align-items:center}
+.bd-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bd-item .count{font-weight:bold;color:#1565C0;margin-left:6px;white-space:nowrap}
+
+.preview-table{width:100%;border-collapse:collapse;font-size:10px;margin-top:6px}
+.preview-table th{background:#1565C0;color:#fff;padding:3px 4px;text-align:left}
+.preview-table td{padding:3px 4px;border:1px solid #e0e0e0}
+.preview-table tr:nth-child(even){background:#fafafa}
+
+.footer{text-align:center;padding:8px;font-size:10px;color:#888;margin:0 8px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>e-MASTER Auto Fill</h1>
+  <p>Chrome Extension — v3.0</p>
+</div>
+
+<div class="tabs">
+  <div class="tab on" data-t="import">Import Data</div>
+  <div class="tab" data-t="preview">Preview</div>
+  <div class="tab" data-t="kamus">Kamus</div>
+</div>
+
+<!-- TAB 1: IMPORT -->
+<div class="pane on" id="p-import">
+  <h3>Import dari Excel (.xlsx)</h3>
+  <p class="desc">Kolom: No, Hari, Tanggal, Kegiatan, Obyek Kerja, Volume, Durasi.<br>Briefing &amp; Timbang Terima otomatis diskip.</p>
+  <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" class="inp" style="padding:4px" />
+  <div id="excel-status" class="msg"></div>
+
+  <hr style="border:none;border-top:1px solid #e0e0e0;margin:10px 0">
+
+  <h3>Atau Import JSON</h3>
+  <p class="desc">File JSON hasil <code>convert_excel.py</code></p>
+  <input type="file" id="json-file" accept=".json" class="inp" style="padding:4px" />
+  <div id="json-status" class="msg"></div>
+
+  <div id="data-info" class="msg" style="margin-top:10px"></div>
+</div>
+
+<!-- TAB 2: PREVIEW -->
+<div class="pane" id="p-preview">
+  <div id="data-summary" style="font-size:12px;color:#333;margin-bottom:8px">Belum ada data.</div>
+  <div id="bd-list"></div>
+  <div style="margin-top:8px">
+    <select id="bd-select" class="inp" style="font-size:11px">
+      <option value="">-- Pilih Breakdown --</option>
+    </select>
+  </div>
+  <div id="entry-preview" style="max-height:250px;overflow-y:auto;margin-top:6px"></div>
+</div>
+
+<!-- TAB 3: KAMUS -->
+<div class="pane" id="p-kamus">
+  <h3>Mapping Kamus Aktifitas</h3>
+  <p class="desc">
+    Kata kunci pencarian di popup Kamus per kegiatan.<br>
+    <b>[single]</b> = 1 kata kunci untuk semua entry<br>
+    <b>[multi]</b> = 1 tanggal punya beberapa kata kunci (tiap entry per tanggal dapat 1 keyword berbeda)
+  </p>
+  <textarea id="kamus-mapping" class="inp" rows="12" style="font-family:monospace;font-size:10px"></textarea>
+  <button class="btn pri" id="save-kamus" style="margin-top:4px">Simpan Mapping</button>
+  <div id="kamus-status" class="msg"></div>
+</div>
+
+<div class="footer">
+  Data tersimpan di chrome.storage &mdash; tetap ada setelah refresh
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
