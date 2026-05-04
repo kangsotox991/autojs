@@ -730,7 +730,8 @@ panel.innerHTML=
   '<div class="af-group"><label>Import JSON (opsional):</label><input type="file" id="af-file-import" accept=".json" /></div>'+
   '<div id="af-bd-list" style="margin:6px 0"><div style="color:#999;font-size:11px">Memuat data...</div></div>'+
   '<div class="af-group"><label>Breakdown yang akan diisi:</label><select id="af-bd-select"><option value="">-- Pilih --</option></select></div>'+
-  '<div class="af-group"><label>Mulai dari entry ke-:</label><input type="number" id="af-start-entry" value="1" min="1" /><span style="font-size:10px;color:#999">(default: 1)</span></div>'+
+  '<div class="af-group"><label>Filter Tanggal (opsional):</label><div style="display:flex;gap:4px;align-items:center"><span style="font-size:10px">Dari</span><input type="date" id="af-date-from" style="flex:1" /><span style="font-size:10px">s/d</span><input type="date" id="af-date-to" style="flex:1" /></div></div>'+
+  '<div class="af-group"><label>Mulai dari entry ke-:</label><input type="number" id="af-start-entry" value="1" min="1" /><span style="font-size:10px;color:#999">(default: 1, dihitung setelah filter tanggal)</span></div>'+
   '<div class="af-section-title">Aksi</div>'+
   '<p style="font-size:11px;color:#666;margin:4px 0"><b>Cara:</b> Buka halaman realisasi (klik icon kunci pas) &rarr; Pilih breakdown &rarr; Klik Mulai Auto Fill</p>'+
   '<div class="af-actions"><button class="af-btn af-btn-run" id="af-btn-run">Mulai Auto Fill</button><button class="af-btn af-btn-stop" id="af-btn-stop">Stop</button></div>'+
@@ -788,8 +789,30 @@ document.getElementById('af-file-import').addEventListener('change',function(){
 document.getElementById('af-btn-run').addEventListener('click',function(){
   var bdIdx=parseInt(document.getElementById('af-bd-select').value);
   if(isNaN(bdIdx)){addLog('Pilih breakdown dulu!','err');return;}
+  var dateFrom=document.getElementById('af-date-from').value||'';
+  var dateTo=document.getElementById('af-date-to').value||'';
   var data=getData();if(!data){addLog('Tidak ada data!','err');return;}
   var bd=data.breakdowns[bdIdx];if(!bd){addLog('Breakdown tidak valid!','err');return;}
+
+  if(dateFrom||dateTo){
+    var fromNum=dateFrom?parseInt(dateFrom.replace(/-/g,''),10):0;
+    var toNum=dateTo?parseInt(dateTo.replace(/-/g,''),10):99999999;
+    var filtered=bd.entries.filter(function(e){
+      var p=e.tanggal?e.tanggal.split('-'):[];
+      if(p.length!==3||p[0].length!==2)return true;
+      var num=parseInt(p[2]+p[1]+p[0],10);
+      return num>=fromNum&&num<=toNum;
+    });
+    addLog('Filter tanggal: '+(dateFrom||'...')+' s/d '+(dateTo||'...')+' \u2192 '+filtered.length+'/'+bd.entries.length+' entry','info');
+    if(filtered.length===0){addLog('Tidak ada entry dalam rentang tanggal!','err');return;}
+    bd=JSON.parse(JSON.stringify(bd));
+    bd.entries=filtered;
+    bd.jumlah_entries=filtered.length;
+    data=JSON.parse(JSON.stringify(data));
+    data.breakdowns[bdIdx]=bd;
+    localStorage.setItem('emaster_activities',JSON.stringify(data));
+  }
+
   var startEntry=parseInt(document.getElementById('af-start-entry').value||'1')-1;
   var entryIdx=Math.max(0,Math.min(startEntry,bd.entries.length-1));
   addLog('Mulai: "'+bd.kegiatan_tugas_jabatan+'" entry '+(entryIdx+1)+' s/d '+bd.entries.length,'info');
