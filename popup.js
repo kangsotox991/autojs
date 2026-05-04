@@ -30,23 +30,49 @@ const DEFAULT_KAMUS = {
 const SKIP_KEGIATAN = new Set(['briefing', 'timbang terima']);
 
 // =========================================================================
-// STORAGE (chrome.storage.local)
+// STORAGE (chrome.storage.local with localStorage fallback)
 // =========================================================================
+const useChromeStorage = (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local);
+
 function loadKamus(cb) {
-  chrome.storage.local.get('emaster_kamus_mapping', function(r) {
-    cb(r.emaster_kamus_mapping || JSON.parse(JSON.stringify(DEFAULT_KAMUS)));
-  });
+  if (useChromeStorage) {
+    chrome.storage.local.get('emaster_kamus_mapping', function(r) {
+      cb(r.emaster_kamus_mapping || JSON.parse(JSON.stringify(DEFAULT_KAMUS)));
+    });
+  } else {
+    try {
+      const s = localStorage.getItem('emaster_kamus_mapping');
+      cb(s ? JSON.parse(s) : JSON.parse(JSON.stringify(DEFAULT_KAMUS)));
+    } catch(e) { cb(JSON.parse(JSON.stringify(DEFAULT_KAMUS))); }
+  }
 }
 function saveKamus(k, cb) {
-  chrome.storage.local.set({ emaster_kamus_mapping: k }, cb);
+  if (useChromeStorage) {
+    chrome.storage.local.set({ emaster_kamus_mapping: k }, cb);
+  } else {
+    try { localStorage.setItem('emaster_kamus_mapping', JSON.stringify(k)); } catch(e) {}
+    if (cb) cb();
+  }
 }
 function loadActivities(cb) {
-  chrome.storage.local.get('emaster_activities', function(r) {
-    cb(r.emaster_activities || null);
-  });
+  if (useChromeStorage) {
+    chrome.storage.local.get('emaster_activities', function(r) {
+      cb(r.emaster_activities || null);
+    });
+  } else {
+    try {
+      const s = localStorage.getItem('emaster_activities');
+      cb(s ? JSON.parse(s) : null);
+    } catch(e) { cb(null); }
+  }
 }
 function saveActivities(d, cb) {
-  chrome.storage.local.set({ emaster_activities: d }, cb);
+  if (useChromeStorage) {
+    chrome.storage.local.set({ emaster_activities: d }, cb);
+  } else {
+    try { localStorage.setItem('emaster_activities', JSON.stringify(d)); } catch(e) {}
+    if (cb) cb();
+  }
 }
 
 // =========================================================================
@@ -61,7 +87,29 @@ function esc(s) { const d = document.createElement('div'); d.textContent = s; re
 // =========================================================================
 let kamusMapping = {};
 
-function convertExcelToJSON(rawRows) {
+function parseIntSafe(val) {
+  if (val == null || val === '') return '';
+  var n = parseInt(val, 10);
+  return isNaN(n) ? '' : String(n);
+}
+
+function parseDateToNum(dateStr) {
+  if (!dateStr) return 0;
+  var parts = dateStr.split('-');
+  if (parts.length === 3 && parts[0].length === 2) {
+    return parseInt(parts[2] + parts[1] + parts[0], 10);
+  }
+  return 0;
+}
+
+function isoToNum(isoStr) {
+  if (!isoStr) return 0;
+  return parseInt(isoStr.replace(/-/g, ''), 10);
+}
+
+function convertExcelToJSON(rawRows, dateFrom, dateTo) {
+  var filterFrom = isoToNum(dateFrom);
+  var filterTo = isoToNum(dateTo);
   let headerIdx = -1;
   let colMap = {};
 
@@ -127,9 +175,9 @@ function convertExcelToJSON(rawRows) {
     if (SKIP_KEGIATAN.has(kegiatan.toLowerCase().trim())) continue;
 
     const objek = colMap.objek_kerja !== undefined ? String(row[colMap.objek_kerja]||'').trim() : '';
-    const vol = colMap.volume !== undefined ? String(parseInt(row[colMap.volume])||'') : '';
-    const durasi = colMap.durasi !== undefined ? String(parseInt(row[colMap.durasi])||'') : '';
-    const beban = colMap.beban_kerja !== undefined ? String(parseInt(row[colMap.beban_kerja])||'') : '';
+    const vol = colMap.volume !== undefined ? parseIntSafe(row[colMap.volume]) : '';
+    const durasi = colMap.durasi !== undefined ? parseIntSafe(row[colMap.durasi]) : '';
+    const beban = colMap.beban_kerja !== undefined ? parseIntSafe(row[colMap.beban_kerja]) : '';
 
     const entry = {
       hari: curHari,
@@ -141,6 +189,12 @@ function convertExcelToJSON(rawRows) {
       volume: vol,
       beban_kerja: beban
     };
+
+    if (filterFrom || filterTo) {
+      var dateNum = parseDateToNum(curTgl);
+      if (filterFrom && dateNum < filterFrom) continue;
+      if (filterTo && dateNum > filterTo) continue;
+    }
 
     if (!grouped[kegiatan]) grouped[kegiatan] = [];
     grouped[kegiatan].push(entry);
@@ -190,17 +244,27 @@ function convertExcelToJSON(rawRows) {
   };
 }
 
+function excelSerialToDate(serial) {
+  var epoch = new Date(Date.UTC(1899, 11, 30));
+  return new Date(epoch.getTime() + serial * 86400000);
+}
+
 function formatDate(val) {
-  if (!val) return '';
-  if (val instanceof Date) {
-    const dd = String(val.getDate()).padStart(2,'0');
-    const mm = String(val.getMonth()+1).padStart(2,'0');
-    return dd + '-' + mm + '-' + val.getFullYear();
+  if (val == null || val === '') return '';
+  if (typeof val === 'number' && val > 1 && val < 200000) {
+    val = excelSerialToDate(val);
   }
-  const s = String(val).trim();
+  if (val instanceof Date) {
+    var dd = String(val.getUTCDate()).padStart(2,'0');
+    var mm = String(val.getUTCMonth()+1).padStart(2,'0');
+    var yyyy = val.getUTCFullYear();
+    if (yyyy < 1900 || yyyy > 2100) return '';
+    return dd + '-' + mm + '-' + yyyy;
+  }
+  var s = String(val).trim();
   if (/^\d{2}-\d{2}-\d{4}$/.test(s)) return s;
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s.replace(/\//g,'-');
-  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  var iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return iso[3]+'-'+iso[2]+'-'+iso[1];
   return s;
 }
@@ -333,10 +397,19 @@ function bindEvents() {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-        const result = convertExcelToJSON(rawRows);
+        var dateFrom = $('#date-from') ? $('#date-from').value : '';
+        var dateTo = $('#date-to') ? $('#date-to').value : '';
+        const result = convertExcelToJSON(rawRows, dateFrom, dateTo);
         if (!result) {
           statusEl.className = 'msg e';
           statusEl.textContent = 'Error: Header tabel (No, Kegiatan, ...) tidak ditemukan!';
+          return;
+        }
+
+        if (result.total_entries === 0 && (dateFrom || dateTo)) {
+          statusEl.className = 'msg e';
+          statusEl.textContent = 'Tidak ada data dalam rentang tanggal yang dipilih.' +
+            (dateFrom ? '\nDari: ' + dateFrom : '') + (dateTo ? '\nSampai: ' + dateTo : '');
           return;
         }
 
@@ -344,8 +417,11 @@ function bindEvents() {
         saveActivities(result, function() {
           renderBreakdowns();
           showDataInfo();
+          var filterInfo = '';
+          if (dateFrom || dateTo) filterInfo = '\nFilter: ' + (dateFrom || '...') + ' s/d ' + (dateTo || '...');
           statusEl.className = 'msg s';
-          statusEl.textContent = 'Berhasil! ' + result.total_breakdowns + ' breakdown, ' + result.total_entries + ' entry.\nNama: ' + (result.info.nama || '-') + '\nNIP: ' + (result.info.nip || '-');
+          statusEl.textContent = 'Berhasil! ' + result.total_breakdowns + ' breakdown, ' + result.total_entries + ' entry.' +
+            '\nNama: ' + (result.info.nama || '-') + '\nNIP: ' + (result.info.nip || '-') + filterInfo;
         });
       } catch (err) {
         statusEl.className = 'msg e';

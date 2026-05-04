@@ -101,6 +101,15 @@ body{font:14px/1.5 Arial,sans-serif;background:#f0f4f8;color:#333;min-height:100
       Kegiatan "Briefing" dan "Timbang Terima" akan otomatis diskip.
     </p>
     <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" class="inp" style="padding:5px" />
+
+    <h3 style="margin-top:10px">Filter Tanggal (opsional)</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:6px">Hanya import data dalam rentang tanggal tertentu.</p>
+    <div style="display:flex;gap:8px;align-items:center">
+      <label style="font-size:12px;font-weight:600;white-space:nowrap">Dari:</label>
+      <input type="date" id="date-from" class="inp" style="flex:1" />
+      <label style="font-size:12px;font-weight:600;white-space:nowrap">Sampai:</label>
+      <input type="date" id="date-to" class="inp" style="flex:1" />
+    </div>
     <div id="excel-status" class="msg"></div>
 
     <hr style="border:none;border-top:1px solid #e0e0e0;margin:14px 0">
@@ -233,7 +242,29 @@ function esc(s) { const d=document.createElement('div'); d.textContent=s; return
 // =========================================================================
 // EXCEL → JSON CONVERSION (replaces convert_excel.py)
 // =========================================================================
-function convertExcelToJSON(rawRows) {
+function parseIntSafe(val) {
+  if (val == null || val === '') return '';
+  var n = parseInt(val, 10);
+  return isNaN(n) ? '' : String(n);
+}
+
+function parseDateToNum(dateStr) {
+  if (!dateStr) return 0;
+  var parts = dateStr.split('-');
+  if (parts.length === 3 && parts[0].length === 2) {
+    return parseInt(parts[2] + parts[1] + parts[0], 10);
+  }
+  return 0;
+}
+
+function isoToNum(isoStr) {
+  if (!isoStr) return 0;
+  return parseInt(isoStr.replace(/-/g, ''), 10);
+}
+
+function convertExcelToJSON(rawRows, dateFrom, dateTo) {
+  var filterFrom = isoToNum(dateFrom);
+  var filterTo = isoToNum(dateTo);
   // Find header row
   let headerIdx = -1;
   let colMap = {};
@@ -304,9 +335,9 @@ function convertExcelToJSON(rawRows) {
     if (SKIP_KEGIATAN.has(kegiatan.toLowerCase().trim())) continue;
 
     const objek = colMap.objek_kerja !== undefined ? String(row[colMap.objek_kerja]||'').trim() : '';
-    const vol = colMap.volume !== undefined ? String(parseInt(row[colMap.volume])||'') : '';
-    const durasi = colMap.durasi !== undefined ? String(parseInt(row[colMap.durasi])||'') : '';
-    const beban = colMap.beban_kerja !== undefined ? String(parseInt(row[colMap.beban_kerja])||'') : '';
+    const vol = colMap.volume !== undefined ? parseIntSafe(row[colMap.volume]) : '';
+    const durasi = colMap.durasi !== undefined ? parseIntSafe(row[colMap.durasi]) : '';
+    const beban = colMap.beban_kerja !== undefined ? parseIntSafe(row[colMap.beban_kerja]) : '';
 
     const entry = {
       hari: curHari,
@@ -318,6 +349,12 @@ function convertExcelToJSON(rawRows) {
       volume: vol,
       beban_kerja: beban
     };
+
+    if (filterFrom || filterTo) {
+      var dateNum = parseDateToNum(curTgl);
+      if (filterFrom && dateNum < filterFrom) continue;
+      if (filterTo && dateNum > filterTo) continue;
+    }
 
     if (!grouped[kegiatan]) grouped[kegiatan] = [];
     grouped[kegiatan].push(entry);
@@ -367,17 +404,27 @@ function convertExcelToJSON(rawRows) {
   };
 }
 
+function excelSerialToDate(serial) {
+  var epoch = new Date(Date.UTC(1899, 11, 30));
+  return new Date(epoch.getTime() + serial * 86400000);
+}
+
 function formatDate(val) {
-  if (!val) return '';
-  if (val instanceof Date) {
-    const dd = String(val.getDate()).padStart(2,'0');
-    const mm = String(val.getMonth()+1).padStart(2,'0');
-    return dd + '-' + mm + '-' + val.getFullYear();
+  if (val == null || val === '') return '';
+  if (typeof val === 'number' && val > 1 && val < 200000) {
+    val = excelSerialToDate(val);
   }
-  const s = String(val).trim();
+  if (val instanceof Date) {
+    var dd = String(val.getUTCDate()).padStart(2,'0');
+    var mm = String(val.getUTCMonth()+1).padStart(2,'0');
+    var yyyy = val.getUTCFullYear();
+    if (yyyy < 1900 || yyyy > 2100) return '';
+    return dd + '-' + mm + '-' + yyyy;
+  }
+  var s = String(val).trim();
   if (/^\d{2}-\d{2}-\d{4}$/.test(s)) return s;
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s.replace(/\//g,'-');
-  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  var iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return iso[3]+'-'+iso[2]+'-'+iso[1];
   return s;
 }
@@ -683,7 +730,8 @@ panel.innerHTML=
   '<div class="af-group"><label>Import JSON (opsional):</label><input type="file" id="af-file-import" accept=".json" /></div>'+
   '<div id="af-bd-list" style="margin:6px 0"><div style="color:#999;font-size:11px">Memuat data...</div></div>'+
   '<div class="af-group"><label>Breakdown yang akan diisi:</label><select id="af-bd-select"><option value="">-- Pilih --</option></select></div>'+
-  '<div class="af-group"><label>Mulai dari entry ke-:</label><input type="number" id="af-start-entry" value="1" min="1" /><span style="font-size:10px;color:#999">(default: 1)</span></div>'+
+  '<div class="af-group"><label>Filter Tanggal (opsional):</label><div style="display:flex;gap:4px;align-items:center"><span style="font-size:10px">Dari</span><input type="date" id="af-date-from" style="flex:1" /><span style="font-size:10px">s/d</span><input type="date" id="af-date-to" style="flex:1" /></div></div>'+
+  '<div class="af-group"><label>Mulai dari entry ke-:</label><input type="number" id="af-start-entry" value="1" min="1" /><span style="font-size:10px;color:#999">(default: 1, dihitung setelah filter tanggal)</span></div>'+
   '<div class="af-section-title">Aksi</div>'+
   '<p style="font-size:11px;color:#666;margin:4px 0"><b>Cara:</b> Buka halaman realisasi (klik icon kunci pas) &rarr; Pilih breakdown &rarr; Klik Mulai Auto Fill</p>'+
   '<div class="af-actions"><button class="af-btn af-btn-run" id="af-btn-run">Mulai Auto Fill</button><button class="af-btn af-btn-stop" id="af-btn-stop">Stop</button></div>'+
@@ -741,8 +789,30 @@ document.getElementById('af-file-import').addEventListener('change',function(){
 document.getElementById('af-btn-run').addEventListener('click',function(){
   var bdIdx=parseInt(document.getElementById('af-bd-select').value);
   if(isNaN(bdIdx)){addLog('Pilih breakdown dulu!','err');return;}
+  var dateFrom=document.getElementById('af-date-from').value||'';
+  var dateTo=document.getElementById('af-date-to').value||'';
   var data=getData();if(!data){addLog('Tidak ada data!','err');return;}
   var bd=data.breakdowns[bdIdx];if(!bd){addLog('Breakdown tidak valid!','err');return;}
+
+  if(dateFrom||dateTo){
+    var fromNum=dateFrom?parseInt(dateFrom.replace(/-/g,''),10):0;
+    var toNum=dateTo?parseInt(dateTo.replace(/-/g,''),10):99999999;
+    var filtered=bd.entries.filter(function(e){
+      var p=e.tanggal?e.tanggal.split('-'):[];
+      if(p.length!==3||p[0].length!==2)return true;
+      var num=parseInt(p[2]+p[1]+p[0],10);
+      return num>=fromNum&&num<=toNum;
+    });
+    addLog('Filter tanggal: '+(dateFrom||'...')+' s/d '+(dateTo||'...')+' \u2192 '+filtered.length+'/'+bd.entries.length+' entry','info');
+    if(filtered.length===0){addLog('Tidak ada entry dalam rentang tanggal!','err');return;}
+    bd=JSON.parse(JSON.stringify(bd));
+    bd.entries=filtered;
+    bd.jumlah_entries=filtered.length;
+    data=JSON.parse(JSON.stringify(data));
+    data.breakdowns[bdIdx]=bd;
+    localStorage.setItem('emaster_activities',JSON.stringify(data));
+  }
+
   var startEntry=parseInt(document.getElementById('af-start-entry').value||'1')-1;
   var entryIdx=Math.max(0,Math.min(startEntry,bd.entries.length-1));
   addLog('Mulai: "'+bd.kegiatan_tugas_jabatan+'" entry '+(entryIdx+1)+' s/d '+bd.entries.length,'info');
@@ -918,10 +988,19 @@ function bindEvents() {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-        const result = convertExcelToJSON(rawRows);
+        var dateFrom = $('#date-from') ? $('#date-from').value : '';
+        var dateTo = $('#date-to') ? $('#date-to').value : '';
+        const result = convertExcelToJSON(rawRows, dateFrom, dateTo);
         if (!result) {
           statusEl.className = 'msg e';
           statusEl.textContent = 'Error: Header tabel (No, Kegiatan, ...) tidak ditemukan!';
+          return;
+        }
+
+        if (result.total_entries === 0 && (dateFrom || dateTo)) {
+          statusEl.className = 'msg e';
+          statusEl.textContent = 'Tidak ada data dalam rentang tanggal yang dipilih.' +
+            (dateFrom ? '\nDari: ' + dateFrom : '') + (dateTo ? '\nSampai: ' + dateTo : '');
           return;
         }
 
@@ -930,8 +1009,10 @@ function bindEvents() {
         renderBreakdowns();
         updateBookmarklet();
 
+        var filterInfo = '';
+        if (dateFrom || dateTo) filterInfo = '\nFilter: ' + (dateFrom || '...') + ' s/d ' + (dateTo || '...');
         statusEl.className = 'msg s';
-        statusEl.textContent = 'Berhasil! ' + result.total_breakdowns + ' breakdown, ' + result.total_entries + ' entry.\nNama: ' + (result.info.nama || '-') + '\nNIP: ' + (result.info.nip || '-');
+        statusEl.textContent = 'Berhasil! ' + result.total_breakdowns + ' breakdown, ' + result.total_entries + ' entry.\nNama: ' + (result.info.nama || '-') + '\nNIP: ' + (result.info.nip || '-') + filterInfo;
       } catch (err) {
         statusEl.className = 'msg e';
         statusEl.textContent = 'Error: ' + err.message;

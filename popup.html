@@ -62,6 +62,15 @@ h3{font-size:12px;color:#1565C0;margin:8px 0 4px;font-weight:bold}
   <h3>Import dari Excel (.xlsx)</h3>
   <p class="desc">Kolom: No, Hari, Tanggal, Kegiatan, Obyek Kerja, Volume, Durasi.<br>Briefing &amp; Timbang Terima otomatis diskip.</p>
   <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" class="inp" style="padding:4px" />
+
+  <h3>Filter Tanggal (opsional)</h3>
+  <p class="desc">Hanya import data dalam rentang tanggal tertentu.</p>
+  <div style="display:flex;gap:6px;align-items:center">
+    <label style="font-size:11px;font-weight:600;white-space:nowrap">Dari:</label>
+    <input type="date" id="date-from" class="inp" style="flex:1" />
+    <label style="font-size:11px;font-weight:600;white-space:nowrap">Sampai:</label>
+    <input type="date" id="date-to" class="inp" style="flex:1" />
+  </div>
   <div id="excel-status" class="msg"></div>
 
   <hr style="border:none;border-top:1px solid #e0e0e0;margin:10px 0">
