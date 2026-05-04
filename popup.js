@@ -93,7 +93,23 @@ function parseIntSafe(val) {
   return isNaN(n) ? '' : String(n);
 }
 
-function convertExcelToJSON(rawRows) {
+function parseDateToNum(dateStr) {
+  if (!dateStr) return 0;
+  var parts = dateStr.split('-');
+  if (parts.length === 3 && parts[0].length === 2) {
+    return parseInt(parts[2] + parts[1] + parts[0], 10);
+  }
+  return 0;
+}
+
+function isoToNum(isoStr) {
+  if (!isoStr) return 0;
+  return parseInt(isoStr.replace(/-/g, ''), 10);
+}
+
+function convertExcelToJSON(rawRows, dateFrom, dateTo) {
+  var filterFrom = isoToNum(dateFrom);
+  var filterTo = isoToNum(dateTo);
   let headerIdx = -1;
   let colMap = {};
 
@@ -173,6 +189,12 @@ function convertExcelToJSON(rawRows) {
       volume: vol,
       beban_kerja: beban
     };
+
+    if (filterFrom || filterTo) {
+      var dateNum = parseDateToNum(curTgl);
+      if (filterFrom && dateNum < filterFrom) continue;
+      if (filterTo && dateNum > filterTo) continue;
+    }
 
     if (!grouped[kegiatan]) grouped[kegiatan] = [];
     grouped[kegiatan].push(entry);
@@ -375,10 +397,19 @@ function bindEvents() {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-        const result = convertExcelToJSON(rawRows);
+        var dateFrom = $('#date-from') ? $('#date-from').value : '';
+        var dateTo = $('#date-to') ? $('#date-to').value : '';
+        const result = convertExcelToJSON(rawRows, dateFrom, dateTo);
         if (!result) {
           statusEl.className = 'msg e';
           statusEl.textContent = 'Error: Header tabel (No, Kegiatan, ...) tidak ditemukan!';
+          return;
+        }
+
+        if (result.total_entries === 0 && (dateFrom || dateTo)) {
+          statusEl.className = 'msg e';
+          statusEl.textContent = 'Tidak ada data dalam rentang tanggal yang dipilih.' +
+            (dateFrom ? '\nDari: ' + dateFrom : '') + (dateTo ? '\nSampai: ' + dateTo : '');
           return;
         }
 
@@ -386,8 +417,11 @@ function bindEvents() {
         saveActivities(result, function() {
           renderBreakdowns();
           showDataInfo();
+          var filterInfo = '';
+          if (dateFrom || dateTo) filterInfo = '\nFilter: ' + (dateFrom || '...') + ' s/d ' + (dateTo || '...');
           statusEl.className = 'msg s';
-          statusEl.textContent = 'Berhasil! ' + result.total_breakdowns + ' breakdown, ' + result.total_entries + ' entry.\nNama: ' + (result.info.nama || '-') + '\nNIP: ' + (result.info.nip || '-');
+          statusEl.textContent = 'Berhasil! ' + result.total_breakdowns + ' breakdown, ' + result.total_entries + ' entry.' +
+            '\nNama: ' + (result.info.nama || '-') + '\nNIP: ' + (result.info.nip || '-') + filterInfo;
         });
       } catch (err) {
         statusEl.className = 'msg e';
