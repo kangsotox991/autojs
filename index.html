@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>e-MASTER Auto Fill — Browser Version</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:14px/1.5 Arial,sans-serif;background:#f0f4f8;color:#333;min-height:100vh}
+
+.app-header{background:linear-gradient(135deg,#1565C0,#0D47A1);color:#fff;padding:18px 24px;text-align:center}
+.app-header h1{font-size:22px;font-weight:700}
+.app-header p{font-size:12px;opacity:.85;margin-top:4px}
+
+.container{max-width:960px;margin:20px auto;padding:0 16px}
+
+.info-box{background:#E3F2FD;border:1px solid #90CAF9;border-radius:8px;padding:14px;margin-bottom:16px;font-size:12px;color:#1565C0;line-height:1.6}
+.info-box strong{color:#0D47A1}
+.info-box a{color:#0D47A1}
+
+.section{background:#fff;border:1px solid #ddd;border-radius:8px;padding:16px;margin-bottom:16px}
+.section h2{font-size:15px;color:#1565C0;margin-bottom:10px;border-bottom:1px solid #e0e0e0;padding-bottom:6px}
+.section h3{font-size:13px;color:#333;margin:12px 0 6px;font-weight:bold}
+
+.lbl{display:block;font-weight:600;margin:8px 0 4px;font-size:12px;color:#555}
+.inp{width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px;margin-bottom:6px}
+.inp:focus{border-color:#1565C0;outline:none;box-shadow:0 0 0 2px rgba(21,101,192,.15)}
+.row{display:flex;gap:8px;align-items:center}
+
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;color:#fff;transition:opacity .2s}
+.btn:hover{opacity:.85}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.pri{background:#1565C0}.suc{background:#4CAF50}.dan{background:#f44336}.warn{background:#FF9800}.purple{background:#9C27B0}
+.btngrp{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+
+.bd-item{padding:8px 10px;margin:4px 0;background:#f0f4ff;border-radius:6px;font-size:12px;display:flex;justify-content:space-between;align-items:center}
+.bd-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bd-item .count{font-weight:bold;color:#1565C0;margin-left:8px}
+
+.msg{margin-top:10px;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.4;white-space:pre-line;display:none}
+.msg.i{display:block;background:#E3F2FD;color:#1565C0;border:1px solid #90CAF9}
+.msg.s{display:block;background:#E8F5E9;color:#2E7D32;border:1px solid #A5D6A7}
+.msg.e{display:block;background:#FFEBEE;color:#C62828;border:1px solid #EF9A9A}
+.msg.w{display:block;background:#FFF3E0;color:#E65100;border:1px solid #FFCC80}
+
+.log-box{margin-top:10px;padding:10px;background:#f5f5f5;border-radius:6px;max-height:300px;overflow-y:auto;font-size:11px;font-family:monospace;color:#555}
+.log-ok{color:#2E7D32}.log-warn{color:#EF6C00}.log-err{color:#C62828}.log-info{color:#1565C0}
+
+.preview-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px}
+.preview-table th{background:#1565C0;color:#fff;padding:5px 6px;text-align:left}
+.preview-table td{padding:4px 6px;border:1px solid #e0e0e0}
+.preview-table tr:nth-child(even){background:#fafafa}
+.preview-table tr.current{background:#E3F2FD;font-weight:700}
+
+.progress-bar{height:8px;background:#BBDEFB;border-radius:4px;margin-top:6px;overflow:hidden}
+.progress-fill{height:100%;background:#1565C0;border-radius:4px;transition:width .3s}
+
+.bm-link{display:inline-block;padding:10px 20px;background:linear-gradient(135deg,#1565C0,#0D47A1);color:#fff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:700;cursor:move;margin:8px 0}
+.bm-link:hover{opacity:.9}
+
+.tabs{display:flex;gap:3px;margin-bottom:0}
+.tab{flex:1;padding:10px 8px;border:1px solid #ccc;border-bottom:none;border-radius:8px 8px 0 0;background:#f5f5f5;cursor:pointer;font-size:12px;font-weight:600;color:#666;text-align:center;transition:background .2s}
+.tab.on{background:#1565C0;color:#fff;border-color:#1565C0}
+.pane{display:none;background:#fff;border:1px solid #ccc;border-radius:0 0 8px 8px;padding:16px}
+.pane.on{display:block}
+
+.footer{text-align:center;padding:16px;font-size:11px;color:#888}
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <h1>e-MASTER Auto Fill — Browser Version</h1>
+  <p>Pengisian otomatis Aktivitas Kinerja Harian Si-MASTER BKD Jatim — tanpa Tampermonkey, tanpa Python</p>
+</div>
+
+<div class="container">
+
+  <div class="info-box">
+    <strong>Cara Pakai:</strong><br>
+    1. Upload file <strong>Excel</strong> (.xlsx) di bawah — akan otomatis dikonversi ke JSON (tidak perlu Python)<br>
+    2. Atau import file <strong>JSON</strong> (hasil <code>convert_excel.py</code>)<br>
+    3. Drag tombol <strong>Bookmarklet</strong> ke bookmark bar<br>
+    4. Buka <a href="https://master.bkd.jatimprov.go.id" target="_blank">Si-MASTER</a>, login, buka halaman realisasi breakdown<br>
+    5. Klik bookmarklet — panel auto-fill akan muncul dengan data yang sudah diimport
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab on" data-t="convert">1. Import Data</div>
+    <div class="tab" data-t="preview">2. Preview</div>
+    <div class="tab" data-t="bookmarklet">3. Bookmarklet</div>
+  </div>
+
+  <!-- TAB 1: IMPORT -->
+  <div class="pane on" id="p-convert">
+    <h3>Import dari Excel (.xlsx)</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:8px">
+      Kolom yang dibutuhkan: <strong>No, Hari, Tanggal, Kegiatan Tugas Jabatan, Obyek Kerja, Volume, Durasi (Menit)</strong><br>
+      Kegiatan "Briefing" dan "Timbang Terima" akan otomatis diskip.
+    </p>
+    <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" class="inp" style="padding:5px" />
+
+    <h3 style="margin-top:10px">Filter Tanggal (opsional)</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:6px">Hanya import data dalam rentang tanggal tertentu.</p>
+    <div style="display:flex;gap:8px;align-items:center">
+      <label style="font-size:12px;font-weight:600;white-space:nowrap">Dari:</label>
+      <input type="date" id="date-from" class="inp" style="flex:1" />
+      <label style="font-size:12px;font-weight:600;white-space:nowrap">Sampai:</label>
+      <input type="date" id="date-to" class="inp" style="flex:1" />
+    </div>
+    <div id="excel-status" class="msg"></div>
+
+    <hr style="border:none;border-top:1px solid #e0e0e0;margin:14px 0">
+
+    <h3>Atau Import dari JSON</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:8px">
+      File JSON hasil <code>python convert_excel.py</code>
+    </p>
+    <input type="file" id="json-file" accept=".json" class="inp" style="padding:5px" />
+    <div id="json-status" class="msg"></div>
+
+    <hr style="border:none;border-top:1px solid #e0e0e0;margin:14px 0">
+
+    <h3>Mapping Kamus Aktifitas</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:8px">
+      Kata kunci pencarian di popup Kamus Aktifitas per kegiatan. Bisa diedit sesuai kebutuhan.
+    </p>
+    <textarea id="kamus-mapping" class="inp" rows="10" style="font-family:monospace;font-size:11px"></textarea>
+    <button class="btn pri" id="save-kamus" style="margin-top:6px">Simpan Mapping</button>
+    <div id="kamus-status" class="msg"></div>
+  </div>
+
+  <!-- TAB 2: PREVIEW -->
+  <div class="pane" id="p-preview">
+    <div id="data-summary" style="font-size:13px;color:#333;margin-bottom:10px">Belum ada data. Import Excel atau JSON dulu.</div>
+    <div id="bd-list"></div>
+    <div style="margin-top:10px">
+      <label class="lbl">Pilih Breakdown:</label>
+      <select id="bd-select" class="inp"></select>
+    </div>
+    <div id="entry-preview" style="max-height:300px;overflow-y:auto;margin-top:8px"></div>
+    <div id="preview-status" class="msg"></div>
+  </div>
+
+  <!-- TAB 3: BOOKMARKLET -->
+  <div class="pane" id="p-bookmarklet">
+    <h3>Bookmarklet — Inject Auto-Fill ke Si-MASTER</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:10px">
+      Drag tombol ini ke bookmark bar browser Anda.<br>
+      Saat berada di halaman Si-MASTER (halaman realisasi atau Tambah Aktivitas), klik bookmarklet untuk memunculkan panel auto-fill.
+    </p>
+    <p><a class="bm-link" id="bm-link" href="#">e-MASTER Auto Fill</a></p>
+    <ol style="font-size:12px;color:#555;padding-left:20px;margin:10px 0">
+      <li>Import data (Excel/JSON) di tab 1</li>
+      <li>Drag tombol biru di atas ke bookmark bar</li>
+      <li>Buka <a href="https://master.bkd.jatimprov.go.id" target="_blank">Si-MASTER</a> dan login (NIP + Password + OTP)</li>
+      <li>Buka halaman <strong>Aktivitas Bulan</strong> → klik icon kunci pas pada breakdown</li>
+      <li>Klik bookmarklet di bookmark bar</li>
+      <li>Panel auto-fill muncul — pilih breakdown → klik <strong>Mulai Auto Fill</strong></li>
+    </ol>
+
+    <hr style="border:none;border-top:1px solid #e0e0e0;margin:14px 0">
+
+    <h3>Atau: Copy-Paste ke Console</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:8px">
+      Jika bookmarklet tidak bisa di-drag, copy kode di bawah lalu paste di <strong>Developer Console</strong> (F12 → Console) saat di halaman Si-MASTER.
+    </p>
+    <textarea id="console-code" class="inp" rows="6" readonly style="font-family:monospace;font-size:10px"></textarea>
+    <button class="btn pri" id="copy-code" style="margin-top:6px">Copy ke Clipboard</button>
+  </div>
+
+</div>
+
+<div class="footer">
+  e-MASTER Auto Fill Browser Version &mdash; MIT License &mdash; Data tersimpan lokal di browser (localStorage)
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// =========================================================================
+// KAMUS AKTIFITAS — default mapping
+// =========================================================================
+const DEFAULT_KAMUS = {
+  'Melaksanakan asuhan keperawatan sesuai SOP': {
+    keywords: ['Manajemen Asuhan Keperawatan'],
+    mode: 'single'
+  },
+  'Menginput dokumentasi tindakan keperawatan': {
+    keywords: ['Memasukkan Hasil Pengkajian'],
+    mode: 'single'
+  },
+  'Melaksanakan tindakan keperawatan tepat waktu': {
+    keywords: ['Pasang Infus','Sampling Darah Vena Instalasi','Terapi Injeksi Parenteral'],
+    mode: 'multi'
+  },
+  'Melaksanakan prosedur keperawatan sesuai SOP': {
+    keywords: ['Terapi Injeksi Line','Pasang Infus','Mengukur Tanda Tanda','Sampling Darah Vena Instalasi'],
+    mode: 'multi'
+  },
+  'Menyiapkan alat medis pelayanan': {
+    keywords: ['Memeriksa Kelengkapan Alat'],
+    mode: 'single'
+  }
+};
+
+const SKIP_KEGIATAN = new Set(['briefing', 'timbang terima']);
+
+// =========================================================================
+// STORAGE
+// =========================================================================
+function loadKamus() {
+  try {
+    const s = localStorage.getItem('emaster_kamus_mapping');
+    if (s) return JSON.parse(s);
+  } catch(e) {}
+  return JSON.parse(JSON.stringify(DEFAULT_KAMUS));
+}
+function saveKamus(k) { localStorage.setItem('emaster_kamus_mapping', JSON.stringify(k)); }
+function loadActivities() {
+  try {
+    const s = localStorage.getItem('emaster_activities');
+    if (s) return JSON.parse(s);
+  } catch(e) {}
+  return null;
+}
+function saveActivities(d) { localStorage.setItem('emaster_activities', JSON.stringify(d)); }
+
+let kamusMapping = loadKamus();
+let activitiesData = loadActivities();
+
+// =========================================================================
+// DOM
+// =========================================================================
+const $  = (s,p) => (p||document).querySelector(s);
+const $$ = (s,p) => [...(p||document).querySelectorAll(s)];
+function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+// =========================================================================
+// EXCEL → JSON CONVERSION (replaces convert_excel.py)
+// =========================================================================
+function parseIntSafe(val) {
+  if (val == null || val === '') return '';
+  var n = parseInt(val, 10);
+  return isNaN(n) ? '' : String(n);
+}
+
+function parseDateToNum(dateStr) {
+  if (!dateStr) return 0;
+  var parts = dateStr.split('-');
+  if (parts.length === 3 && parts[0].length === 2) {
+    return parseInt(parts[2] + parts[1] + parts[0], 10);
+  }
+  return 0;
+}
+
+function isoToNum(isoStr) {
+  if (!isoStr) return 0;
+  return parseInt(isoStr.replace(/-/g, ''), 10);
+}
+
+function convertExcelToJSON(rawRows, dateFrom, dateTo) {
+  var filterFrom = isoToNum(dateFrom);
+  var filterTo = isoToNum(dateTo);
+  // Find header row
+  let headerIdx = -1;
+  let colMap = {};
+
+  for (let i = 0; i < Math.min(rawRows.length, 30); i++) {
+    const row = rawRows[i].map(c => String(c||'').toLowerCase().trim());
+    if (row.some(c => c === 'no')) {
+      const hasKegiatan = row.some(c => c.includes('kegiatan') || c.includes('aktivitas'));
+      if (hasKegiatan) {
+        headerIdx = i;
+        for (let j = 0; j < row.length; j++) {
+          const h = row[j];
+          if (h === 'no' || h === 'no.') colMap.no = j;
+          else if (h === 'hari') colMap.hari = j;
+          else if (h.includes('tanggal') || h.includes('tgl')) colMap.tanggal = j;
+          else if (h.includes('kegiatan') || h.includes('detail') || h.includes('aktivitas')) colMap.kegiatan = j;
+          else if (h.includes('obyek') || h.includes('objek') || h.includes('uraian')) colMap.objek_kerja = j;
+          else if (h.includes('volume') || h === 'vol') colMap.volume = j;
+          else if (h.includes('beban')) colMap.beban_kerja = j;
+          else if (h.includes('durasi') || h.includes('wpt') || (h.includes('menit') && !h.includes('beban'))) colMap.durasi = j;
+        }
+        break;
+      }
+    }
+  }
+
+  if (headerIdx === -1) return null;
+
+  // Extract employee info from rows above header
+  const info = { nama: '', nip: '', unit_kerja: '' };
+  for (let i = 0; i < headerIdx; i++) {
+    const cellA = String(rawRows[i][0]||'').trim().toLowerCase();
+    const cellB = String(rawRows[i][1]||'').trim().replace(/^:\s*/, '');
+    if (cellA === 'nama' && cellB) info.nama = cellB;
+    else if (cellA === 'nip' && cellB) info.nip = cellB;
+    else if (cellA.includes('unit kerja') && cellB) info.unit_kerja = cellB;
+  }
+
+  // Skip sub-header rows
+  let dataStart = headerIdx + 1;
+  for (let i = dataStart; i < dataStart + 3 && i < rawRows.length; i++) {
+    const cell = rawRows[i][colMap.no !== undefined ? colMap.no : 0];
+    if (cell == null || (typeof cell === 'string' && !cell.trim().match(/^\d+$/))) {
+      dataStart = i + 1;
+    } else break;
+  }
+
+  // Group by kegiatan
+  const grouped = {};
+  let curHari = '', curTgl = '';
+
+  for (let i = dataStart; i < rawRows.length; i++) {
+    const row = rawRows[i];
+    const noVal = colMap.no !== undefined ? row[colMap.no] : null;
+    if (noVal == null) continue;
+    const noStr = String(noVal).trim().toLowerCase();
+    if (noStr === '' || noStr === 'total' || noStr === 'nb') continue;
+    if (!/^\d+$/.test(noStr)) continue;
+
+    if (colMap.hari !== undefined && row[colMap.hari]) curHari = String(row[colMap.hari]).trim();
+    if (colMap.tanggal !== undefined && row[colMap.tanggal]) {
+      const raw = row[colMap.tanggal];
+      curTgl = formatDate(raw);
+    }
+
+    const kegiatan = colMap.kegiatan !== undefined ? String(row[colMap.kegiatan]||'').trim() : '';
+    if (!kegiatan) continue;
+    if (SKIP_KEGIATAN.has(kegiatan.toLowerCase().trim())) continue;
+
+    const objek = colMap.objek_kerja !== undefined ? String(row[colMap.objek_kerja]||'').trim() : '';
+    const vol = colMap.volume !== undefined ? parseIntSafe(row[colMap.volume]) : '';
+    const durasi = colMap.durasi !== undefined ? parseIntSafe(row[colMap.durasi]) : '';
+    const beban = colMap.beban_kerja !== undefined ? parseIntSafe(row[colMap.beban_kerja]) : '';
+
+    const entry = {
+      hari: curHari,
+      tanggal: curTgl,
+      detail_aktivitas: kegiatan,
+      objek_kerja: objek,
+      satuan: 'Pasien',
+      wpt_menit: durasi,
+      volume: vol,
+      beban_kerja: beban
+    };
+
+    if (filterFrom || filterTo) {
+      var dateNum = parseDateToNum(curTgl);
+      if (filterFrom && dateNum < filterFrom) continue;
+      if (filterTo && dateNum > filterTo) continue;
+    }
+
+    if (!grouped[kegiatan]) grouped[kegiatan] = [];
+    grouped[kegiatan].push(entry);
+  }
+
+  // Detect month
+  let bulan = '';
+  const allEntries = Object.values(grouped).flat();
+  if (allEntries.length > 0) {
+    const first = allEntries[0].tanggal;
+    const parts = first.replace(/\//g,'-').split('-');
+    if (parts.length === 3) bulan = parts[1];
+  }
+
+  // Build breakdowns with kamus expansion
+  const breakdowns = [];
+  let totalExpanded = 0;
+  for (const [kegName, entries] of Object.entries(grouped)) {
+    const kamus = kamusMapping[kegName] || { keywords: [kegName], mode: 'single' };
+    let expanded;
+    if (kamus.mode === 'multi' && kamus.keywords.length > 1) {
+      expanded = [];
+      for (const entry of entries) {
+        for (const kw of kamus.keywords) {
+          expanded.push({ ...entry, kamus_keyword: kw });
+        }
+      }
+    } else {
+      expanded = entries.map(e => ({ ...e, kamus_keyword: kamus.keywords[0] }));
+    }
+    totalExpanded += expanded.length;
+    breakdowns.push({
+      kegiatan_tugas_jabatan: kegName,
+      jumlah_entries: expanded.length,
+      kamus_config: kamus,
+      entries: expanded
+    });
+  }
+
+  return {
+    info,
+    bulan,
+    generated_at: new Date().toISOString(),
+    total_entries: totalExpanded,
+    total_breakdowns: breakdowns.length,
+    breakdowns
+  };
+}
+
+function excelSerialToDate(serial) {
+  var epoch = new Date(Date.UTC(1899, 11, 30));
+  return new Date(epoch.getTime() + serial * 86400000);
+}
+
+function formatDate(val) {
+  if (val == null || val === '') return '';
+  if (typeof val === 'number' && val > 1 && val < 200000) {
+    val = excelSerialToDate(val);
+  }
+  if (val instanceof Date) {
+    var dd = String(val.getUTCDate()).padStart(2,'0');
+    var mm = String(val.getUTCMonth()+1).padStart(2,'0');
+    var yyyy = val.getUTCFullYear();
+    if (yyyy < 1900 || yyyy > 2100) return '';
+    return dd + '-' + mm + '-' + yyyy;
+  }
+  var s = String(val).trim();
+  if (/^\d{2}-\d{2}-\d{4}$/.test(s)) return s;
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s.replace(/\//g,'-');
+  var iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return iso[3]+'-'+iso[2]+'-'+iso[1];
+  return s;
+}
+
+// =========================================================================
+// BOOKMARKLET — injectable auto-fill panel (replaces userscript)
+// =========================================================================
+function generateInjectScript() {
+  const data = loadActivities();
+  const dataStr = data ? JSON.stringify(data) : 'null';
+
+  return `(function(){
+if(document.getElementById('emaster-af-panel')){document.getElementById('emaster-af-panel').style.display='';return;}
+
+var CONFIG={DELAY_BEFORE_FILL:1500,DELAY_BEFORE_SAVE:800,DELAY_AFTER_SAVE:1000,DELAY_POPUP:1500};
+
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms)});}
+
+/* ===== STATE (localStorage) ===== */
+function getState(){try{var s=localStorage.getItem('emaster_autofill_state');return s?JSON.parse(s):null}catch(e){return null}}
+function setState(s){localStorage.setItem('emaster_autofill_state',JSON.stringify(s))}
+function clearState(){localStorage.removeItem('emaster_autofill_state')}
+function getData(){try{var s=localStorage.getItem('emaster_activities');return s?JSON.parse(s):null}catch(e){return null}}
+
+/* ===== Inject data from converter ===== */
+var injectedData=${dataStr};
+if(injectedData){localStorage.setItem('emaster_activities',JSON.stringify(injectedData));}
+
+/* ===== FIELD DETECTION ===== */
+function findFieldByLabel(labelText){
+  var normalized=labelText.toLowerCase().trim();
+  var els=document.querySelectorAll('b,strong');
+  for(var i=0;i<els.length;i++){
+    var el=els[i];
+    if(el.textContent.toLowerCase().trim().indexOf(normalized)>=0){
+      var next=el.nextElementSibling;
+      while(next){
+        if(next.matches&&next.matches('input,select,textarea'))return next;
+        var child=next.querySelector('input,select,textarea');
+        if(child)return child;
+        next=next.nextElementSibling;
+      }
+      var parent=el.parentElement;
+      if(parent){
+        var inputs=parent.querySelectorAll('input,select,textarea');
+        if(inputs.length>0)return inputs[inputs.length-1];
+      }
+    }
+  }
+  var labels=document.querySelectorAll('label');
+  for(var i=0;i<labels.length;i++){
+    if(labels[i].textContent.toLowerCase().indexOf(normalized)>=0){
+      var forId=labels[i].getAttribute('for');
+      if(forId){var t=document.getElementById(forId);if(t)return t;}
+      var inner=labels[i].querySelector('input,select,textarea');
+      if(inner)return inner;
+    }
+  }
+  var cells=document.querySelectorAll('td,th,div,span');
+  for(var i=0;i<cells.length;i++){
+    var c=cells[i];
+    if(c.textContent.toLowerCase().indexOf(normalized)>=0&&c.textContent.length<normalized.length+40){
+      var p=c.parentElement;
+      if(p){var inps=p.querySelectorAll('input,select,textarea');if(inps.length>0)return inps[0];}
+    }
+  }
+  return null;
+}
+
+function setFieldValue(el,val){
+  if(!el||val==null)return false;
+  var v=String(val);
+  if(el.tagName.toLowerCase()==='select'){
+    for(var i=0;i<el.options.length;i++){
+      if(el.options[i].value===v||el.options[i].textContent.trim().toLowerCase()===v.toLowerCase()){
+        el.value=el.options[i].value;triggerEvents(el);return true;
+      }
+    }
+    return false;
+  }
+  var setter=Object.getOwnPropertyDescriptor(el.tagName.toLowerCase()==='textarea'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value');
+  if(setter&&setter.set)setter.set.call(el,v);else el.value=v;
+  triggerEvents(el);return true;
+}
+
+function triggerEvents(el){
+  ['focus','input','change','blur','keyup'].forEach(function(e){
+    el.dispatchEvent(new Event(e,{bubbles:true}));
+  });
+}
+
+function findDotButton(){
+  var btns=document.querySelectorAll("input[type='button'],button");
+  for(var i=0;i<btns.length;i++){
+    var t=(btns[i].textContent||'').trim()||(btns[i].value||'').trim();
+    if(t==='...'||t==='\\u2026')return btns[i];
+  }
+  return null;
+}
+
+function findSaveButton(){
+  var els=document.querySelectorAll("input[type='submit'],button,a");
+  for(var i=0;i<els.length;i++){
+    var t=(els[i].textContent||'').trim().toLowerCase()||(els[i].value||'').trim().toLowerCase();
+    if(t==='save'||t==='simpan')return els[i];
+  }
+  return null;
+}
+
+function findTambahButton(){
+  var els=document.querySelectorAll("a,button,input[type='button'],input[type='submit']");
+  for(var i=0;i<els.length;i++){
+    var t=(els[i].textContent||'').toLowerCase().trim()||(els[i].value||'').toLowerCase().trim();
+    if(t==='tambah'||t.indexOf('tambah')>=0)return els[i];
+  }
+  return null;
+}
+
+function detectPageType(){
+  var url=window.location.href;
+  var params=new URLSearchParams(window.location.search);
+  var text=document.body?document.body.textContent:'';
+  if(text.indexOf('Tambah Aktivitas')>=0&&findSaveButton())return'tambah';
+  if(params.get('act')==='realisasi'||url.indexOf('realisasi')>=0)return'realisasi';
+  if(params.get('module')==='aktifitas_bulan'&&!params.get('act'))return'aktivitas_bulan';
+  return'unknown';
+}
+
+/* ===== LOG ===== */
+var logEl;
+function addLog(msg,type){
+  if(!logEl)return;
+  var d=document.createElement('div');
+  d.className='log-'+(type||'info');
+  d.textContent='['+new Date().toLocaleTimeString('id-ID')+'] '+msg;
+  logEl.insertBefore(d,logEl.firstChild);
+  while(logEl.children.length>100)logEl.removeChild(logEl.lastChild);
+}
+
+function updateProgress(cur,total,text){
+  var pt=document.getElementById('af-progress-text');
+  var pf=document.getElementById('af-progress-fill');
+  if(pt)pt.textContent=text+' ('+cur+'/'+total+')';
+  if(pf)pf.style.width=(cur/total*100)+'%';
+}
+
+function updateStatus(active,text){
+  var el=document.getElementById('af-auto-status');
+  if(!el)return;
+  el.style.background=active?'#C8E6C9':'#E0E0E0';
+  el.style.color=active?'#2E7D32':'#616161';
+  el.textContent=text;
+}
+
+/* ===== POPUP KAMUS ===== */
+async function handleKamusPopup(keyword){
+  addLog('Mencari popup Kamus...','info');
+  await sleep(CONFIG.DELAY_POPUP);
+  var iframes=document.querySelectorAll('iframe');
+  for(var i=0;i<iframes.length;i++){
+    try{
+      var iDoc=iframes[i].contentDocument||iframes[i].contentWindow.document;
+      if(iDoc&&iDoc.body&&iDoc.body.textContent.indexOf('Kamus Aktifitas')>=0){
+        return await searchKamus(iDoc,keyword);
+      }
+    }catch(e){}
+  }
+  if(document.body&&document.body.textContent.indexOf('Kamus Aktifitas')>=0){
+    return await searchKamus(document,keyword);
+  }
+  addLog('Popup Kamus mungkin terbuka di window baru - cari "'+keyword+'" manual','warn');
+  return false;
+}
+
+async function searchKamus(doc,keyword){
+  var si=doc.querySelector("input[type='text']");
+  if(si){
+    var setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
+    if(setter&&setter.set)setter.set.call(si,keyword);else si.value=keyword;
+    si.dispatchEvent(new Event('input',{bubbles:true}));
+    si.dispatchEvent(new Event('change',{bubbles:true}));
+    addLog('Ketik "'+keyword+'" di Kamus','ok');
+  }
+  await sleep(500);
+  var btns=doc.querySelectorAll("input[type='button'],input[type='submit'],button");
+  for(var i=0;i<btns.length;i++){
+    var t=(btns[i].textContent||'').trim().toLowerCase()||(btns[i].value||'').trim().toLowerCase();
+    if(t==='cari'||t==='search'){btns[i].click();addLog('Klik Cari','ok');break;}
+  }
+  await sleep(CONFIG.DELAY_POPUP);
+  var cells=doc.querySelectorAll('td');
+  for(var i=0;i<cells.length;i++){
+    if(cells[i].textContent.trim().toLowerCase().indexOf(keyword.toLowerCase())>=0){
+      var link=cells[i].querySelector('a');
+      if(link){link.click();}else{cells[i].click();}
+      addLog('Klik hasil: "'+cells[i].textContent.trim().substring(0,50)+'"','ok');
+      return true;
+    }
+  }
+  addLog('Hasil pencarian Kamus tidak ditemukan!','warn');
+  return false;
+}
+
+/* ===== FILL FORM ===== */
+function fillFieldByLabel(labels,value){
+  if(!value&&value!==0)return false;
+  for(var i=0;i<labels.length;i++){
+    var el=findFieldByLabel(labels[i]);
+    if(el&&!el.readOnly&&!el.disabled){
+      setFieldValue(el,value);
+      addLog('  '+labels[i]+': "'+String(value).substring(0,60)+'"','ok');
+      return true;
+    }
+  }
+  return false;
+}
+
+async function fillFormFields(entry){
+  var filled=0;
+  if(fillFieldByLabel(['tanggal aktivitas','tanggal'],entry.tanggal))filled++;
+  var kw=entry.kamus_keyword||entry.detail_aktivitas||'';
+  addLog('Detail Aktivitas: "'+kw+'"','info');
+  var dotBtn=findDotButton();
+  if(dotBtn){
+    dotBtn.click();addLog("Klik '...' buka Kamus",'ok');
+    var ok=await handleKamusPopup(kw);
+    if(ok){filled++;await sleep(CONFIG.DELAY_POPUP);}
+    else{addLog('Kamus gagal, coba isi langsung','warn');if(fillFieldByLabel(['detail aktivitas','detail'],kw))filled++;}
+  }else{
+    addLog("Tombol '...' tidak ditemukan",'warn');
+    if(fillFieldByLabel(['detail aktivitas','detail'],kw))filled++;
+  }
+  if(fillFieldByLabel(['volume'],entry.volume))filled++;
+  if(fillFieldByLabel(['objek kerja / topik','objek kerja','topik'],entry.objek_kerja))filled++;
+  addLog(filled+' field terisi',filled>0?'ok':'warn');
+  return filled;
+}
+
+/* ===== AUTO-FILL ENGINE ===== */
+async function handleTambahPage(){
+  var state=getState();if(!state||!state.running)return;
+  var data=getData();if(!data){addLog('Data tidak ditemukan!','err');clearState();return;}
+  var bd=data.breakdowns[state.breakdownIdx];if(!bd){clearState();return;}
+  var entry=bd.entries[state.entryIdx];if(!entry){clearState();return;}
+  updateStatus(true,'Auto-fill: BD '+(state.breakdownIdx+1)+', Entry '+(state.entryIdx+1)+'/'+bd.entries.length);
+  updateProgress(state.entryIdx+1,bd.entries.length,bd.kegiatan_tugas_jabatan.substring(0,30));
+  addLog('=== Entry '+(state.entryIdx+1)+'/'+bd.entries.length+' ===','info');
+  await sleep(CONFIG.DELAY_BEFORE_FILL);
+  var filled=await fillFormFields(entry);
+  if(filled>0){
+    var next=state.entryIdx+1;
+    if(next<bd.entries.length){setState({running:true,breakdownIdx:state.breakdownIdx,entryIdx:next});}
+    else{addLog('Breakdown "'+bd.kegiatan_tugas_jabatan+'" selesai!','ok');clearState();}
+    await sleep(CONFIG.DELAY_BEFORE_SAVE);
+    var saveBtn=findSaveButton();
+    if(saveBtn){addLog('Klik Save...','info');saveBtn.click();}
+    else{addLog('Tombol Save tidak ditemukan!','err');}
+  }else{addLog('Gagal mengisi form.','err');clearState();}
+}
+
+async function handleRealisasiPage(){
+  var state=getState();if(!state||!state.running)return;
+  var data=getData();if(!data)return;
+  var bd=data.breakdowns[state.breakdownIdx];if(!bd){clearState();return;}
+  if(state.entryIdx>=bd.entries.length){
+    addLog('Breakdown selesai!','ok');updateStatus(false,'Selesai!');clearState();return;
+  }
+  updateStatus(true,'Lanjut entry '+(state.entryIdx+1)+'/'+bd.entries.length+'...');
+  await sleep(CONFIG.DELAY_AFTER_SAVE);
+  var btn=findTambahButton();
+  if(btn){btn.click();}else{addLog('Tombol Tambah tidak ditemukan!','err');clearState();}
+}
+
+/* ===== PANEL UI ===== */
+var css=document.createElement('style');
+css.textContent='#emaster-af-panel{position:fixed;top:10px;right:10px;z-index:99999;background:#fff;border:2px solid #1565C0;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.18);font:13px/1.45 Arial,sans-serif;width:400px;max-height:92vh;overflow-y:auto}'+
+'.af-header{background:#1565C0;color:#fff;padding:10px 14px;font-weight:bold;font-size:14px;display:flex;justify-content:space-between;align-items:center;cursor:move;border-radius:6px 6px 0 0}'+
+'.af-header button{background:none;border:none;color:#fff;font-size:18px;cursor:pointer}'+
+'.af-body{padding:12px 14px}'+
+'.af-group{margin-bottom:6px}.af-group label{display:block;font-weight:bold;margin-bottom:2px;color:#333;font-size:11px}'+
+'.af-group input,.af-group select{width:100%;padding:5px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px;box-sizing:border-box}'+
+'.af-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}'+
+'.af-btn{padding:7px 14px;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;flex:1;min-width:80px;text-align:center;color:#fff}'+
+'.af-btn-run{background:#4CAF50}.af-btn-run:hover{background:#388E3C}'+
+'.af-btn-stop{background:#f44336}.af-btn-stop:hover{background:#d32f2f}'+
+'.af-btn-scan{background:#FF9800}.af-btn-scan:hover{background:#F57C00}'+
+'#emaster-af-log{margin-top:8px;padding:8px;background:#f5f5f5;border-radius:4px;max-height:200px;overflow-y:auto;font-size:11px;font-family:monospace;color:#555}'+
+'.log-ok{color:#2E7D32}.log-warn{color:#EF6C00}.log-err{color:#C62828}.log-info{color:#1565C0}'+
+'.af-bd-item{padding:6px 8px;margin:3px 0;background:#f0f4ff;border-radius:4px;font-size:11px;display:flex;justify-content:space-between}'+
+'.af-progress{margin-top:8px;padding:6px;background:#E3F2FD;border-radius:4px;font-size:12px;color:#1565C0}'+
+'.af-progress-bar{height:6px;background:#BBDEFB;border-radius:3px;margin-top:4px;overflow:hidden}'+
+'.af-progress-fill{height:100%;background:#1565C0;border-radius:3px;transition:width .3s}'+
+'.af-auto-status{margin-top:8px;padding:8px;border-radius:4px;font-size:12px;font-weight:bold;background:#E0E0E0;color:#616161}'+
+'.af-section-title{font-weight:bold;color:#1565C0;margin:10px 0 5px;font-size:13px;border-bottom:1px solid #e0e0e0;padding-bottom:3px}';
+document.head.appendChild(css);
+
+var panel=document.createElement('div');
+panel.id='emaster-af-panel';
+panel.innerHTML=
+'<div class="af-header"><span>e-MASTER Auto Fill v3.0</span><button id="af-close-btn" title="Tutup">&times;</button></div>'+
+'<div class="af-body">'+
+  '<div class="af-section-title">Data</div>'+
+  '<div class="af-group"><label>Import JSON (opsional):</label><input type="file" id="af-file-import" accept=".json" /></div>'+
+  '<div id="af-bd-list" style="margin:6px 0"><div style="color:#999;font-size:11px">Memuat data...</div></div>'+
+  '<div class="af-group"><label>Breakdown yang akan diisi:</label><select id="af-bd-select"><option value="">-- Pilih --</option></select></div>'+
+  '<div class="af-group"><label>Filter Tanggal (opsional):</label><div style="display:flex;gap:4px;align-items:center"><span style="font-size:10px">Dari</span><input type="date" id="af-date-from" style="flex:1" /><span style="font-size:10px">s/d</span><input type="date" id="af-date-to" style="flex:1" /></div></div>'+
+  '<div class="af-group"><label>Mulai dari entry ke-:</label><input type="number" id="af-start-entry" value="1" min="1" /><span style="font-size:10px;color:#999">(default: 1, dihitung setelah filter tanggal)</span></div>'+
+  '<div class="af-section-title">Aksi</div>'+
+  '<p style="font-size:11px;color:#666;margin:4px 0"><b>Cara:</b> Buka halaman realisasi (klik icon kunci pas) &rarr; Pilih breakdown &rarr; Klik Mulai Auto Fill</p>'+
+  '<div class="af-actions"><button class="af-btn af-btn-run" id="af-btn-run">Mulai Auto Fill</button><button class="af-btn af-btn-stop" id="af-btn-stop">Stop</button></div>'+
+  '<div class="af-actions"><button class="af-btn af-btn-scan" id="af-btn-scan">Scan Halaman</button></div>'+
+  '<div id="af-auto-status" class="af-auto-status">Tidak aktif</div>'+
+  '<div class="af-progress"><span id="af-progress-text">Belum dimulai</span><div class="af-progress-bar"><div id="af-progress-fill" class="af-progress-fill" style="width:0%"></div></div></div>'+
+  '<div id="emaster-af-log"></div>'+
+'</div>';
+document.body.appendChild(panel);
+logEl=document.getElementById('emaster-af-log');
+
+/* Load & display data */
+function displayData(data){
+  if(!data||!data.breakdowns)return;
+  var list=document.getElementById('af-bd-list');
+  var sel=document.getElementById('af-bd-select');
+  if(list){
+    list.innerHTML='';
+    data.breakdowns.forEach(function(bd,idx){
+      var d=document.createElement('div');d.className='af-bd-item';
+      d.innerHTML='<span>'+(idx+1)+'. '+bd.kegiatan_tugas_jabatan+'</span><span style="font-weight:bold;color:#1565C0;margin-left:8px">'+bd.jumlah_entries+'</span>';
+      list.appendChild(d);
+    });
+  }
+  if(sel){
+    sel.innerHTML='<option value="">-- Pilih --</option>';
+    data.breakdowns.forEach(function(bd,idx){
+      var o=document.createElement('option');o.value=idx;
+      o.textContent=(idx+1)+'. '+bd.kegiatan_tugas_jabatan+' ('+bd.jumlah_entries+' entry)';
+      sel.appendChild(o);
+    });
+  }
+  addLog('Data: '+data.total_breakdowns+' breakdown, '+data.total_entries+' entry','ok');
+}
+
+var theData=getData();
+if(theData)displayData(theData);
+else addLog('Belum ada data. Import di halaman converter atau upload JSON.','warn');
+
+/* File import */
+document.getElementById('af-file-import').addEventListener('change',function(){
+  if(!this.files.length)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var d=JSON.parse(e.target.result);
+      localStorage.setItem('emaster_activities',JSON.stringify(d));
+      displayData(d);addLog('File dimuat!','ok');
+    }catch(err){addLog('Error: '+err.message,'err');}
+  };
+  reader.readAsText(this.files[0]);
+});
+
+/* Start */
+document.getElementById('af-btn-run').addEventListener('click',function(){
+  var bdIdx=parseInt(document.getElementById('af-bd-select').value);
+  if(isNaN(bdIdx)){addLog('Pilih breakdown dulu!','err');return;}
+  var dateFrom=document.getElementById('af-date-from').value||'';
+  var dateTo=document.getElementById('af-date-to').value||'';
+  var data=getData();if(!data){addLog('Tidak ada data!','err');return;}
+  var bd=data.breakdowns[bdIdx];if(!bd){addLog('Breakdown tidak valid!','err');return;}
+
+  if(dateFrom||dateTo){
+    var fromNum=dateFrom?parseInt(dateFrom.replace(/-/g,''),10):0;
+    var toNum=dateTo?parseInt(dateTo.replace(/-/g,''),10):99999999;
+    var filtered=bd.entries.filter(function(e){
+      var p=e.tanggal?e.tanggal.split('-'):[];
+      if(p.length!==3||p[0].length!==2)return true;
+      var num=parseInt(p[2]+p[1]+p[0],10);
+      return num>=fromNum&&num<=toNum;
+    });
+    addLog('Filter tanggal: '+(dateFrom||'...')+' s/d '+(dateTo||'...')+' \u2192 '+filtered.length+'/'+bd.entries.length+' entry','info');
+    if(filtered.length===0){addLog('Tidak ada entry dalam rentang tanggal!','err');return;}
+    bd=JSON.parse(JSON.stringify(bd));
+    bd.entries=filtered;
+    bd.jumlah_entries=filtered.length;
+    data=JSON.parse(JSON.stringify(data));
+    data.breakdowns[bdIdx]=bd;
+    localStorage.setItem('emaster_activities',JSON.stringify(data));
+  }
+
+  var startEntry=parseInt(document.getElementById('af-start-entry').value||'1')-1;
+  var entryIdx=Math.max(0,Math.min(startEntry,bd.entries.length-1));
+  addLog('Mulai: "'+bd.kegiatan_tugas_jabatan+'" entry '+(entryIdx+1)+' s/d '+bd.entries.length,'info');
+  setState({running:true,breakdownIdx:bdIdx,entryIdx:entryIdx});
+  var pt=detectPageType();
+  if(pt==='realisasi'){handleRealisasiPage();}
+  else if(pt==='tambah'){handleTambahPage();}
+  else{addLog('Buka halaman realisasi dulu!','warn');clearState();}
+});
+
+document.getElementById('af-btn-stop').addEventListener('click',function(){
+  clearState();updateStatus(false,'Dihentikan');addLog('Auto-fill dihentikan','warn');
+});
+
+document.getElementById('af-btn-scan').addEventListener('click',function(){
+  var pt=detectPageType();
+  addLog('=== Scan ===','info');addLog('URL: '+window.location.href,'info');addLog('Halaman: '+pt,'info');
+  var inputs=document.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]),select,textarea');
+  addLog('Input fields: '+inputs.length,'info');
+});
+
+document.getElementById('af-close-btn').addEventListener('click',function(){
+  panel.style.display='none';
+});
+
+/* Draggable */
+var isDrag=false,ox,oy;
+var hdr=panel.querySelector('.af-header');
+hdr.addEventListener('mousedown',function(e){isDrag=true;ox=e.clientX-panel.getBoundingClientRect().left;oy=e.clientY-panel.getBoundingClientRect().top;});
+document.addEventListener('mousemove',function(e){if(!isDrag)return;panel.style.left=(e.clientX-ox)+'px';panel.style.top=(e.clientY-oy)+'px';panel.style.right='auto';});
+document.addEventListener('mouseup',function(){isDrag=false;});
+
+/* Auto-resume */
+var pt=detectPageType();var state=getState();
+if(state&&state.running){
+  addLog('Auto-fill aktif. Halaman: '+pt,'info');
+  if(pt==='tambah')handleTambahPage();
+  else if(pt==='realisasi')handleRealisasiPage();
+}
+addLog('Halaman: '+pt,'info');addLog('Panel siap.','info');
+})();`;
+}
+
+function generateBookmarklet() {
+  const script = generateInjectScript();
+  return 'javascript:void(' + encodeURIComponent(script) + ')';
+}
+
+// =========================================================================
+// UI — RENDER
+// =========================================================================
+function renderKamusMapping() {
+  const ta = $('#kamus-mapping');
+  if (!ta) return;
+  const lines = [];
+  for (const [keg, cfg] of Object.entries(kamusMapping)) {
+    lines.push(keg + ' [' + cfg.mode + ']');
+    for (const kw of cfg.keywords) {
+      lines.push('  - ' + kw);
+    }
+    lines.push('');
+  }
+  ta.value = lines.join('\n');
+}
+
+function parseKamusMapping(text) {
+  const result = {};
+  let current = null;
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      if (current) {
+        result[current.name].keywords.push(trimmed.replace(/^[-*]\s*/, ''));
+      }
+    } else {
+      const m = trimmed.match(/^(.+?)\s*\[(single|multi)\]\s*$/);
+      if (m) {
+        current = { name: m[1].trim() };
+        result[current.name] = { keywords: [], mode: m[2] };
+      } else {
+        current = { name: trimmed };
+        result[current.name] = { keywords: [], mode: 'single' };
+      }
+    }
+  }
+  // Fill empty keywords with name itself
+  for (const [k, v] of Object.entries(result)) {
+    if (v.keywords.length === 0) v.keywords = [k];
+  }
+  return result;
+}
+
+function renderBreakdowns() {
+  const data = activitiesData;
+  const summary = $('#data-summary');
+  const bdList = $('#bd-list');
+  const bdSelect = $('#bd-select');
+
+  if (!data || !data.breakdowns) {
+    summary.textContent = 'Belum ada data. Import Excel atau JSON dulu.';
+    bdList.innerHTML = '';
+    bdSelect.innerHTML = '<option value="">-- Belum ada data --</option>';
+    return;
+  }
+
+  summary.innerHTML = '<strong>' + esc(data.info.nama || 'Data') + '</strong> | NIP: ' + esc(data.info.nip || '-') +
+    ' | Bulan: ' + esc(data.bulan || '-') +
+    ' | <strong>' + data.total_breakdowns + ' breakdown, ' + data.total_entries + ' entry</strong>';
+
+  bdList.innerHTML = data.breakdowns.map(function(bd, i) {
+    return '<div class="bd-item"><span class="name">' + (i+1) + '. ' + esc(bd.kegiatan_tugas_jabatan) + '</span><span class="count">' + bd.jumlah_entries + ' entry</span></div>';
+  }).join('');
+
+  bdSelect.innerHTML = '<option value="">-- Pilih Breakdown --</option>' +
+    data.breakdowns.map(function(bd, i) {
+      return '<option value="' + i + '">' + (i+1) + '. ' + esc(bd.kegiatan_tugas_jabatan) + ' (' + bd.jumlah_entries + ')</option>';
+    }).join('');
+}
+
+function renderEntryPreview() {
+  const bdIdx = parseInt($('#bd-select').value);
+  const box = $('#entry-preview');
+  if (isNaN(bdIdx) || !activitiesData || !activitiesData.breakdowns[bdIdx]) {
+    box.innerHTML = '<p style="font-size:12px;color:#888">Pilih breakdown untuk melihat preview.</p>';
+    return;
+  }
+  const entries = activitiesData.breakdowns[bdIdx].entries;
+  const show = entries.slice(0, 20);
+  let html = '<table class="preview-table"><tr><th>#</th><th>Tanggal</th><th>Kamus Keyword</th><th>Vol</th><th>Objek Kerja</th></tr>';
+  show.forEach(function(e, i) {
+    html += '<tr><td>' + (i+1) + '</td><td>' + esc(e.tanggal) + '</td><td>' + esc((e.kamus_keyword||'').substring(0,35)) + '</td><td>' + esc(e.volume) + '</td><td>' + esc((e.objek_kerja||'').substring(0,50)) + '</td></tr>';
+  });
+  if (entries.length > 20) html += '<tr><td colspan="5" style="text-align:center;color:#888">... dan ' + (entries.length - 20) + ' entry lainnya</td></tr>';
+  html += '</table>';
+  box.innerHTML = html;
+}
+
+function updateBookmarklet() {
+  const bmLink = $('#bm-link');
+  const consoleCode = $('#console-code');
+  const script = generateInjectScript();
+  if (bmLink) bmLink.href = 'javascript:void(' + encodeURIComponent(script) + ')';
+  if (consoleCode) consoleCode.value = script;
+}
+
+// =========================================================================
+// EVENTS
+// =========================================================================
+function bindEvents() {
+  // Tabs
+  $$('.tab').forEach(function(t) {
+    t.addEventListener('click', function() {
+      $$('.tab').forEach(function(x) { x.classList.remove('on'); });
+      $$('.pane').forEach(function(x) { x.classList.remove('on'); });
+      t.classList.add('on');
+      $('#p-' + t.dataset.t).classList.add('on');
+    });
+  });
+
+  // Excel import
+  $('#excel-file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const statusEl = $('#excel-status');
+    statusEl.className = 'msg i'; statusEl.textContent = 'Membaca file...';
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const wb = XLSX.read(data, { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+        var dateFrom = $('#date-from') ? $('#date-from').value : '';
+        var dateTo = $('#date-to') ? $('#date-to').value : '';
+        const result = convertExcelToJSON(rawRows, dateFrom, dateTo);
+        if (!result) {
+          statusEl.className = 'msg e';
+          statusEl.textContent = 'Error: Header tabel (No, Kegiatan, ...) tidak ditemukan!';
+          return;
+        }
+
+        if (result.total_entries === 0 && (dateFrom || dateTo)) {
+          statusEl.className = 'msg e';
+          statusEl.textContent = 'Tidak ada data dalam rentang tanggal yang dipilih.' +
+            (dateFrom ? '\nDari: ' + dateFrom : '') + (dateTo ? '\nSampai: ' + dateTo : '');
+          return;
+        }
+
+        activitiesData = result;
+        saveActivities(result);
+        renderBreakdowns();
+        updateBookmarklet();
+
+        var filterInfo = '';
+        if (dateFrom || dateTo) filterInfo = '\nFilter: ' + (dateFrom || '...') + ' s/d ' + (dateTo || '...');
+        statusEl.className = 'msg s';
+        statusEl.textContent = 'Berhasil! ' + result.total_breakdowns + ' breakdown, ' + result.total_entries + ' entry.\nNama: ' + (result.info.nama || '-') + '\nNIP: ' + (result.info.nip || '-') + filterInfo;
+      } catch (err) {
+        statusEl.className = 'msg e';
+        statusEl.textContent = 'Error: ' + err.message;
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  // JSON import
+  $('#json-file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const statusEl = $('#json-status');
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      try {
+        const data = JSON.parse(evt.target.result);
+        activitiesData = data;
+        saveActivities(data);
+        renderBreakdowns();
+        updateBookmarklet();
+        statusEl.className = 'msg s';
+        statusEl.textContent = 'Berhasil! ' + (data.total_breakdowns||0) + ' breakdown, ' + (data.total_entries||0) + ' entry.';
+      } catch (err) {
+        statusEl.className = 'msg e';
+        statusEl.textContent = 'Error parsing JSON: ' + err.message;
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // Kamus mapping
+  $('#save-kamus').addEventListener('click', function() {
+    const text = $('#kamus-mapping').value;
+    kamusMapping = parseKamusMapping(text);
+    saveKamus(kamusMapping);
+    const statusEl = $('#kamus-status');
+    statusEl.className = 'msg s';
+    statusEl.textContent = 'Mapping disimpan! (' + Object.keys(kamusMapping).length + ' kegiatan)';
+
+    // Re-convert if data exists
+    if (activitiesData && activitiesData.breakdowns) {
+      // Need to reconvert from raw — user should re-import Excel
+      statusEl.textContent += '\nJika ingin apply mapping baru, import ulang file Excel.';
+    }
+  });
+
+  // Breakdown select → preview
+  $('#bd-select').addEventListener('change', renderEntryPreview);
+
+  // Copy console code
+  $('#copy-code').addEventListener('click', function() {
+    const ta = $('#console-code');
+    ta.select();
+    document.execCommand('copy');
+    this.textContent = 'Copied!';
+    setTimeout(function() { document.getElementById('copy-code').textContent = 'Copy ke Clipboard'; }, 2000);
+  });
+}
+
+// =========================================================================
+// INIT
+// =========================================================================
+function init() {
+  bindEvents();
+  renderKamusMapping();
+  renderBreakdowns();
+  updateBookmarklet();
+  if (activitiesData) renderEntryPreview();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+})();
+</script>
+</body>
+</html>
